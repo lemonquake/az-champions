@@ -1903,7 +1903,9 @@ DATA.GEAR_RARITIES = [
   { id: 'fine',   name: 'Fine',   color: '#58c26a', mult: 1.5 },
   { id: 'rare',   name: 'Rare',   color: '#3fa7f5', mult: 2.2 },
   { id: 'epic',   name: 'Epic',   color: '#b45cff', mult: 3.2 },
+  { id: 'mystic', name: 'Mystic', color: '#00e5ff', mult: 3.8 },
   { id: 'mythic', name: 'Mythic', color: '#ff9d2e', mult: 4.6 },
+  { id: 'ultimate', name: 'Ultimate', color: '#ff9100', mult: 4.9 },
   { id: 'legendary', name: 'Legendary', color: '#ff3355', mult: 5.2 },
   { id: 'exclusive', name: 'Exclusive', color: '#ff4d6d', mult: 5.5 },
   { id: 'aether', name: 'AETHER', color: '#7cf5ff', mult: 6.4 },
@@ -1970,9 +1972,13 @@ DATA.EXCLUSIVE_GEAR = [
    ============================================================ */
 DATA.ITEM_TIER_INFO = {
   epic:      { id: 'epic',      name: 'Epic',      color: '#b45cff' },
+  mystic:    { id: 'mystic',    name: 'Mystic',    color: '#00e5ff' },
+  ultimate:  { id: 'ultimate',  name: 'Ultimate',  color: '#ff9100' },
   legendary: { id: 'legendary', name: 'Legendary', color: '#ff3355' },
   aether:    { id: 'aether',    name: 'AETHER',    color: '#7cf5ff' },
 };
+/* Ascending power order for fusion & sorting */
+DATA.ITEM_TIER_ORDER = ['epic', 'mystic', 'ultimate', 'legendary', 'aether'];
 DATA.ITEMS = [
   /* ---------- EPIC (30) — solid procs & auras ---------- */
   { id: 'ep_w1', slot: 'weapon', tier: 'epic', name: 'Palandine Warbrand', fx: { kind: 'burnOnHit', power: 0.20, dur: 3, chance: 35 }, fxDesc: '35% chance on basic attacks to Burn the target (20% ATK/s for 3s).', lore: 'Quenched in the ember canyons of Palandine. It never fully cooled.' },
@@ -2037,6 +2043,94 @@ DATA.ITEMS = [
   { id: 'lg_t5', slot: 'talisman', tier: 'legendary', name: 'Halo of the First Dawn', fx: { kind: 'firstStrike', power: 25, dur: 10 }, fxDesc: '+25% ATK for the first 10 seconds of battle.', lore: 'Astorvia\'s first sunrise, bent into a circle for carrying.' },
   { id: 'lg_t6', slot: 'talisman', tier: 'legendary', name: 'Abyssal Sonar Pearl', fx: { kind: 'executeBonus', power: 25 }, fxDesc: '+25% damage to enemies below 50% HP.', lore: 'It pings when something is nearly finished. Finish it.' },
   { id: 'lg_t7', slot: 'talisman', tier: 'legendary', name: 'Sigil of Five Banners', fx: { kind: 'critUp', power: 8 }, fxDesc: '+8% Critical chance for the whole battle.', lore: 'One banner per region, stitched into a single unreasonable flag.' },
+
+  /* ---------- EPIC EXPANSION (20) — regional war-surplus ---------- */
+  { id: 'ep_n1', slot: 'weapon', tier: 'epic', name: 'Borderland Skirmish Axe', fx: { kind: 'slowOnHit', power: 15, dur: 3, chance: 30 }, fxDesc: '30% chance on basic attacks to Slow the target 15% for 3s.', lore: 'Cuts tendon first, argument second.' },
+  { id: 'ep_n2', slot: 'weapon', tier: 'epic', name: 'Grotto Pearl Trident', fx: { kind: 'defShredOnHit', power: 10, dur: 4, chance: 30 }, fxDesc: '30% chance on basic attacks to shred DEF by 10% for 4s.', lore: 'Three tines: one for fish, two for anyone who asks about the pearls.' },
+  { id: 'ep_n3', slot: 'weapon', tier: 'epic', name: 'Sporewild Cudgel', fx: { kind: 'blindOnHit', power: 15, dur: 2, chance: 25 }, fxDesc: '25% chance on basic attacks to Blind the target (15% miss) for 2s.', lore: 'The spores get in the eyes. The cudgel handles the rest.' },
+  { id: 'ep_n4', slot: 'weapon', tier: 'epic', name: 'Catacomb Warden Mace', fx: { kind: 'energyDrainOnHit', power: 30, chance: 35 }, fxDesc: '35% chance on basic attacks to drain 30 Energy from the target.', lore: 'The honored dead nap deeply. This enforces quiet hours.' },
+  { id: 'ep_n5', slot: 'weapon', tier: 'epic', name: 'Vintner\'s Wrath', fx: { kind: 'skillVamp', power: 50 }, fxDesc: 'Casting your Skill heals you for 50% ATK.', lore: 'Jeehva\'s angriest gardener pruned an entire warband with it.' },
+  { id: 'ep_n6', slot: 'weapon', tier: 'epic', name: 'Colosseum Practice Blade', fx: { kind: 'might', power: 8 }, fxDesc: '+8% ATK for the whole battle.', lore: 'The Ashen Colosseum calls it a practice blade. Practice for what, they never say.' },
+  { id: 'ep_n7', slot: 'armor', tier: 'epic', name: 'Salmonscale Jerkin', fx: { kind: 'vitality', power: 8 }, fxDesc: '+8% Max HP at battle start.', lore: 'Swim upstream long enough and you become the current.' },
+  { id: 'ep_n8', slot: 'armor', tier: 'epic', name: 'Ashen Pilgrim Robes', fx: { kind: 'berserkRage', power: 15 }, fxDesc: 'First time below 50% HP: +15% ATK for the rest of battle.', lore: 'Palandine pilgrims walk through fire on purpose. It puts them in a mood.' },
+  { id: 'ep_n9', slot: 'armor', tier: 'epic', name: 'Dawnwatch Parade Plate', fx: { kind: 'lastStand', power: 150 }, fxDesc: 'First time below 30% HP: gain a shield equal to 150% ATK (8s).', lore: 'Polished for parades. Proven at the last hour of the last watch.' },
+  { id: 'ep_n10', slot: 'armor', tier: 'epic', name: 'Banner-Sergeant\'s Cuirass', fx: { kind: 'rally', power: 8, dur: 8 }, fxDesc: 'Battle start: ALL allies gain +8% ATK for 8s.', lore: 'The sergeant never shouted. The armor did it for him.' },
+  { id: 'ep_n11', slot: 'armor', tier: 'epic', name: 'Moss-Bound Aegis', fx: { kind: 'regen', power: 2.5 }, fxDesc: 'Regenerates 2.5% of max HP every 3 seconds.', lore: 'The moss is doing all the work. Do not tell the shield.' },
+  { id: 'ep_n12', slot: 'boots', tier: 'epic', name: 'Bounty Runner\'s Treads', fx: { kind: 'frenzyKill', power: 5, max: 5 }, fxDesc: 'Each enemy kill grants +5% Speed (stacks up to 5).', lore: 'Paid by the head. Sprints accordingly.' },
+  { id: 'ep_n13', slot: 'boots', tier: 'epic', name: 'Stormcrown Climbers', fx: { kind: 'haste', power: 12 }, fxDesc: '+12% Speed for the whole battle.', lore: 'Rated for peaks, storms, and hasty exits from both.' },
+  { id: 'ep_n14', slot: 'boots', tier: 'epic', name: 'Wisp-Chaser Moccasins', fx: { kind: 'energyOnBasic', power: 18 }, fxDesc: '+18 bonus Energy on every basic attack.', lore: 'Sewn by someone who almost caught a Golden Wisp. Almost.' },
+  { id: 'ep_n15', slot: 'boots', tier: 'epic', name: 'Grave-Quiet Soles', fx: { kind: 'blindOnHit', power: 12, dur: 2, chance: 20 }, fxDesc: '20% chance on basic attacks to Blind the target (12% miss) for 2s.', lore: 'Enemies hear nothing, then see less.' },
+  { id: 'ep_n16', slot: 'talisman', tier: 'epic', name: 'Warlord\'s Iron Fang', fx: { kind: 'executeBonus', power: 18 }, fxDesc: '+18% damage to enemies below 50% HP.', lore: 'Pulled from the first Warlord to fall in Agdao. It remembers how.' },
+  { id: 'ep_n17', slot: 'talisman', tier: 'epic', name: 'Guardian\'s Oath Knot', fx: { kind: 'wardAura', power: 0.6 }, fxDesc: 'Battle start: ALL allies gain a shield equal to 60% of your ATK (10s).', lore: 'Tied once. Never untied. That is the whole oath.' },
+  { id: 'ep_n18', slot: 'talisman', tier: 'epic', name: 'Avenger\'s Ember', fx: { kind: 'avenger', power: 10 }, fxDesc: 'When an ally falls: +10% ATK for the rest of battle (stacks).', lore: 'It only glows when someone you love stops.' },
+  { id: 'ep_n19', slot: 'talisman', tier: 'epic', name: 'Tide-Chart Compass', fx: { kind: 'critUp', power: 6 }, fxDesc: '+6% Critical chance for the whole battle.', lore: 'It does not point north. It points at weaknesses.' },
+  { id: 'ep_n20', slot: 'talisman', tier: 'epic', name: 'Skyvault Lens', fx: { kind: 'critDmg', power: 22 }, fxDesc: 'Critical hits deal +22% more damage.', lore: 'The storm-lords used it to read. You use it to underline.' },
+
+  /* ---------- MYSTIC (20) — arcana of the Accord, cyan-sealed ---------- */
+  { id: 'my_1', slot: 'weapon', tier: 'mystic', name: 'Moonpetal Glaive', fx: { kind: 'slowOnHit', power: 20, dur: 3, chance: 40 }, fxDesc: '40% chance on basic attacks to Slow the target 20% for 3s.', lore: 'Blooms only at night. Harvests around the clock.' },
+  { id: 'my_2', slot: 'weapon', tier: 'mystic', name: 'Accord-Sealed Saber', fx: { kind: 'defShredOnHit', power: 14, dur: 4, chance: 40 }, fxDesc: '40% chance on basic attacks to shred DEF by 14% for 4s.', lore: 'Five signatures on the blade. Each one voids a different kind of armor.' },
+  { id: 'my_3', slot: 'weapon', tier: 'mystic', name: 'Whispering Tidefang', fx: { kind: 'skillVamp', power: 80 }, fxDesc: 'Casting your Skill heals you for 80% ATK.', lore: 'It murmurs the names of drowned kings. They tithe you their strength.' },
+  { id: 'my_4', slot: 'weapon', tier: 'mystic', name: 'Mistral Songblade', fx: { kind: 'energyDrainOnHit', power: 50, chance: 40 }, fxDesc: '40% chance on basic attacks to drain 50 Energy from the target.', lore: 'It steals the breath mid-battle-cry. Rude. Effective.' },
+  { id: 'my_5', slot: 'weapon', tier: 'mystic', name: 'Elderroot Heartspear', fx: { kind: 'might', power: 12 }, fxDesc: '+12% ATK for the whole battle.', lore: 'A branch the Elderroot gave willingly. It grows heavier with purpose.' },
+  { id: 'my_6', slot: 'weapon', tier: 'mystic', name: 'Sirene\'s Encore', fx: { kind: 'blindOnHit', power: 20, dur: 2, chance: 30 }, fxDesc: '30% chance on basic attacks to Blind the target (20% miss) for 2s.', lore: 'The second verse is always aimed at the eyes.' },
+  { id: 'my_7', slot: 'armor', tier: 'mystic', name: 'Robes of the Silent Vow', fx: { kind: 'vitality', power: 12 }, fxDesc: '+12% Max HP at battle start.', lore: 'The vow was never spoken, so it can never be broken.' },
+  { id: 'my_8', slot: 'armor', tier: 'mystic', name: 'Mystic Wardweave', fx: { kind: 'wardAura', power: 0.9 }, fxDesc: 'Battle start: ALL allies gain a shield equal to 90% of your ATK (10s).', lore: 'Woven from the pause before a healer says "you\'ll be fine."' },
+  { id: 'my_9', slot: 'armor', tier: 'mystic', name: 'Carapace of Rising Fury', fx: { kind: 'berserkRage', power: 22 }, fxDesc: 'First time below 50% HP: +22% ATK for the rest of battle.', lore: 'Pain in, power out. The exchange rate is excellent.' },
+  { id: 'my_10', slot: 'armor', tier: 'mystic', name: 'Vigilkeeper Plate', fx: { kind: 'lastStand', power: 220 }, fxDesc: 'First time below 30% HP: gain a shield equal to 220% ATK (8s).', lore: 'The watch ends when the keeper says it ends.' },
+  { id: 'my_11', slot: 'armor', tier: 'mystic', name: 'Deepcurrent Scalemail', fx: { kind: 'thorns', power: 12 }, fxDesc: 'Reflects 12% of damage taken back to attackers.', lore: 'Strike the ocean. See what comes back.' },
+  { id: 'my_12', slot: 'boots', tier: 'mystic', name: 'Petalfall Dancers', fx: { kind: 'dodge', power: 12 }, fxDesc: '12% chance to dodge any attack.', lore: 'Yoon Sul choreographed one duel in these. The duel apologized.' },
+  { id: 'my_13', slot: 'boots', tier: 'mystic', name: 'Currentstep Waders', fx: { kind: 'frenzyKill', power: 7, max: 5 }, fxDesc: 'Each enemy kill grants +7% Speed (stacks up to 5).', lore: 'The river never stops. Neither, apparently, do you.' },
+  { id: 'my_14', slot: 'boots', tier: 'mystic', name: 'Moonlit Escort Greaves', fx: { kind: 'rally', power: 10, dur: 10 }, fxDesc: 'Battle start: ALL allies gain +10% ATK for 10s.', lore: 'Whoever walks beside you walks taller.' },
+  { id: 'my_15', slot: 'boots', tier: 'mystic', name: 'Sagegrass Striders', fx: { kind: 'haste', power: 14 }, fxDesc: '+14% Speed for the whole battle.', lore: 'The grass bends before the wind arrives. So do you.' },
+  { id: 'my_16', slot: 'talisman', tier: 'mystic', name: 'Third Eye of the Accord', fx: { kind: 'critUp', power: 7 }, fxDesc: '+7% Critical chance for the whole battle.', lore: 'It blinks at treaties and stares at throats.' },
+  { id: 'my_17', slot: 'talisman', tier: 'mystic', name: 'Vow of the Fallen', fx: { kind: 'avenger', power: 14 }, fxDesc: 'When an ally falls: +14% ATK for the rest of battle (stacks).', lore: 'Grief, notarized and weaponized.' },
+  { id: 'my_18', slot: 'talisman', tier: 'mystic', name: 'Lantern of Patient Tides', fx: { kind: 'regen', power: 2.8 }, fxDesc: 'Regenerates 2.8% of max HP every 3 seconds.', lore: 'The tide always comes back. So will you.' },
+  { id: 'my_19', slot: 'talisman', tier: 'mystic', name: 'Charm of Hollow Hunger', fx: { kind: 'lifesteal', power: 12 }, fxDesc: 'Heal for 12% of all damage you deal.', lore: 'It is always a little empty. Feed it violence.' },
+  { id: 'my_20', slot: 'talisman', tier: 'mystic', name: 'Mystic Charge Prism', fx: { kind: 'energyStart', power: 300 }, fxDesc: 'Begin battle with +300 Energy.', lore: 'Charged under five moons. Discharged under one bad decision.' },
+
+  /* ---------- ULTIMATE (20) — conquest-forged, warlord orange ---------- */
+  { id: 'ul_1', slot: 'weapon', tier: 'ultimate', name: 'Warlord\'s Mandate', fx: { kind: 'might', power: 16 }, fxDesc: '+16% ATK for the whole battle.', lore: 'Not a sword. A decree with an edge.' },
+  { id: 'ul_2', slot: 'weapon', tier: 'ultimate', name: 'Conqueror\'s Cleaver', fx: { kind: 'executeBonus', power: 26 }, fxDesc: '+26% damage to enemies below 50% HP.', lore: 'Territory is negotiated. This is the negotiator.' },
+  { id: 'ul_3', slot: 'weapon', tier: 'ultimate', name: 'Sunspite Warglaive', fx: { kind: 'defShredOnHit', power: 18, dur: 4, chance: 50 }, fxDesc: '50% chance on basic attacks to shred DEF by 18% for 4s.', lore: 'Forged at noon out of pure spite for shadows.' },
+  { id: 'ul_4', slot: 'weapon', tier: 'ultimate', name: 'Tyrantbreaker Maul', fx: { kind: 'stunOnHit', dur: 1, chance: 10 }, fxDesc: '10% chance on basic attacks to Stun for 1s.', lore: 'Seven tyrants. Seven very short final speeches.' },
+  { id: 'ul_5', slot: 'weapon', tier: 'ultimate', name: 'Bloodmoon Harvester', fx: { kind: 'skillVamp', power: 110 }, fxDesc: 'Casting your Skill heals you for 110% ATK.', lore: 'Under the bloodmoon, every swing is also a meal.' },
+  { id: 'ul_6', slot: 'weapon', tier: 'ultimate', name: 'Siegecrown Lance', fx: { kind: 'slowOnHit', power: 25, dur: 3, chance: 50 }, fxDesc: '50% chance on basic attacks to Slow the target 25% for 3s.', lore: 'Walls fall. Knees follow.' },
+  { id: 'ul_7', slot: 'armor', tier: 'ultimate', name: 'Unyielding Warplate', fx: { kind: 'lastStand', power: 300 }, fxDesc: 'First time below 30% HP: gain a shield equal to 300% ATK (8s).', lore: 'Retreat is a word it was never taught.' },
+  { id: 'ul_8', slot: 'armor', tier: 'ultimate', name: 'Rage-Tempered Bulwark', fx: { kind: 'berserkRage', power: 30 }, fxDesc: 'First time below 50% HP: +30% ATK for the rest of battle.', lore: 'Quenched in fury instead of water. The smith needed a vacation after.' },
+  { id: 'ul_9', slot: 'armor', tier: 'ultimate', name: 'Colossus-Bone Harness', fx: { kind: 'vitality', power: 16 }, fxDesc: '+16% Max HP at battle start.', lore: 'The Colossus does not miss it. The Colossus is in it.' },
+  { id: 'ul_10', slot: 'armor', tier: 'ultimate', name: 'Standard-Bearer\'s Mantle', fx: { kind: 'rally', power: 14, dur: 10 }, fxDesc: 'Battle start: ALL allies gain +14% ATK for 10s.', lore: 'Whoever carries the banner carries the battle.' },
+  { id: 'ul_11', slot: 'armor', tier: 'ultimate', name: 'Molten Vengeance Mail', fx: { kind: 'thorns', power: 16 }, fxDesc: 'Reflects 16% of damage taken back to attackers.', lore: 'Every blow paid back with interest and heat.' },
+  { id: 'ul_12', slot: 'boots', tier: 'ultimate', name: 'Overrun Stompers', fx: { kind: 'frenzyKill', power: 9, max: 5 }, fxDesc: 'Each enemy kill grants +9% Speed (stacks up to 5).', lore: 'Momentum is a weapon. These are its holsters.' },
+  { id: 'ul_13', slot: 'boots', tier: 'ultimate', name: 'Warpath Vanguards', fx: { kind: 'firstStrike', power: 32, dur: 8 }, fxDesc: '+32% ATK for the first 8 seconds of battle.', lore: 'First in. The rest is bookkeeping.' },
+  { id: 'ul_14', slot: 'boots', tier: 'ultimate', name: 'Duskmarch Enforcers', fx: { kind: 'haste', power: 16 }, fxDesc: '+16% Speed for the whole battle.', lore: 'The march that ended three wars by arriving early.' },
+  { id: 'ul_15', slot: 'boots', tier: 'ultimate', name: 'Gravebreaker Sabatons', fx: { kind: 'energyOnBasic', power: 25 }, fxDesc: '+25 bonus Energy on every basic attack.', lore: 'Each step wakes something. Fortunately, it is you.' },
+  { id: 'ul_16', slot: 'talisman', tier: 'ultimate', name: 'Warhorn of Agdao', fx: { kind: 'wardAura', power: 1.2 }, fxDesc: 'Battle start: ALL allies gain a shield equal to 120% of your ATK (10s).', lore: 'One note. Five regions answer.' },
+  { id: 'ul_17', slot: 'talisman', tier: 'ultimate', name: 'Oathbreaker\'s Debt', fx: { kind: 'avenger', power: 18 }, fxDesc: 'When an ally falls: +18% ATK for the rest of battle (stacks).', lore: 'Someone broke a promise. You are the collections department.' },
+  { id: 'ul_18', slot: 'talisman', tier: 'ultimate', name: 'Crown of Spited Kings', fx: { kind: 'critDmg', power: 42 }, fxDesc: 'Critical hits deal +42% more damage.', lore: 'Every king it outlived sharpened it a little more.' },
+  { id: 'ul_19', slot: 'talisman', tier: 'ultimate', name: 'Ultimatum Sigil', fx: { kind: 'energyDrainOnHit', power: 70, chance: 50 }, fxDesc: '50% chance on basic attacks to drain 70 Energy from the target.', lore: 'Surrender now, or surrender shortly.' },
+  { id: 'ul_20', slot: 'talisman', tier: 'ultimate', name: 'Heart of the Conquest', fx: { kind: 'energyStart', power: 350 }, fxDesc: 'Begin battle with +350 Energy.', lore: 'It beats in war drums. It skips in peace.' },
+
+  /* ---------- LEGENDARY EXPANSION (20) — relics of the great names ---------- */
+  { id: 'lg_n1', slot: 'weapon', tier: 'legendary', name: 'Dawnbreaker, Oath of Azrin', fx: { kind: 'might', power: 20 }, fxDesc: '+20% ATK for the whole battle.', lore: 'Azrin swore one oath at sunrise. The blade has kept it every dawn since.' },
+  { id: 'lg_n2', slot: 'weapon', tier: 'legendary', name: 'Ledger of Azrael', fx: { kind: 'executeBonus', power: 32 }, fxDesc: '+32% damage to enemies below 50% HP.', lore: 'Every soul owes. This is the polite final notice.' },
+  { id: 'lg_n3', slot: 'weapon', tier: 'legendary', name: 'Maw of the Rift Wyrm', fx: { kind: 'skillVamp', power: 150 }, fxDesc: 'Casting your Skill heals you for 150% ATK.', lore: 'The wyrm ate light itself. Its teeth learned generosity from no one.' },
+  { id: 'lg_n4', slot: 'weapon', tier: 'legendary', name: 'Stormherald\'s Judgment', fx: { kind: 'slowOnHit', power: 30, dur: 3, chance: 60 }, fxDesc: '60% chance on basic attacks to Slow the target 30% for 3s.', lore: 'The verdict arrives before the thunder does.' },
+  { id: 'lg_n5', slot: 'weapon', tier: 'legendary', name: 'Worldsplitter Reforged', fx: { kind: 'defShredOnHit', power: 24, dur: 4, chance: 60 }, fxDesc: '60% chance on basic attacks to shred DEF by 24% for 4s.', lore: 'It split the world once. The world flinches on sight now.' },
+  { id: 'lg_n6', slot: 'weapon', tier: 'legendary', name: 'The Creator\'s Quill', fx: { kind: 'energyDrainOnHit', power: 100, chance: 60 }, fxDesc: '60% chance on basic attacks to drain 100 Energy from the target.', lore: 'Aljay crossed out an entire villain arc with it. Twice.' },
+  { id: 'lg_n7', slot: 'armor', tier: 'legendary', name: 'Bulwark of Ten Thousand Oaths', fx: { kind: 'lastStand', power: 400 }, fxDesc: 'First time below 30% HP: gain a shield equal to 400% ATK (8s).', lore: 'Every oath ever kept in Astorvia, hammered into one wall.' },
+  { id: 'lg_n8', slot: 'armor', tier: 'legendary', name: 'Heartfire Juggernaut Plate', fx: { kind: 'berserkRage', power: 40 }, fxDesc: 'First time below 50% HP: +40% ATK for the rest of battle.', lore: 'The wound is the ignition. Stand back.' },
+  { id: 'lg_n9', slot: 'armor', tier: 'legendary', name: 'Leviathan-King Aegis', fx: { kind: 'vitality', power: 22 }, fxDesc: '+22% Max HP at battle start.', lore: 'The king of the deep donated his crown-scale. He insists it was a donation.' },
+  { id: 'lg_n10', slot: 'armor', tier: 'legendary', name: 'Warbanner of the Five Dawns', fx: { kind: 'rally', power: 18, dur: 12 }, fxDesc: 'Battle start: ALL allies gain +18% ATK for 12s.', lore: 'Five sunrises stitched into cloth. Morale is now structural.' },
+  { id: 'lg_n11', slot: 'armor', tier: 'legendary', name: 'Shroud of the Patient Reaper', fx: { kind: 'dodge', power: 15 }, fxDesc: '15% chance to dodge any attack.', lore: 'Azrael\'s spare cloak. Death is punctual; you don\'t have to be.' },
+  { id: 'lg_n12', slot: 'boots', tier: 'legendary', name: 'Apexhunter Talons', fx: { kind: 'frenzyKill', power: 12, max: 5 }, fxDesc: 'Each enemy kill grants +12% Speed (stacks up to 5).', lore: 'The food chain has a top. These are its shoes.' },
+  { id: 'lg_n13', slot: 'boots', tier: 'legendary', name: 'Vowkeeper\'s March', fx: { kind: 'wardAura', power: 1.6 }, fxDesc: 'Battle start: ALL allies gain a shield equal to 160% of your ATK (10s).', lore: 'Where these boots walk, promises hold.' },
+  { id: 'lg_n14', slot: 'boots', tier: 'legendary', name: 'Thunderking Stride', fx: { kind: 'haste', power: 20 }, fxDesc: '+20% Speed for the whole battle.', lore: 'Aespo crowned the storm. The storm bought boots.' },
+  { id: 'lg_n15', slot: 'boots', tier: 'legendary', name: 'Executioner\'s Approach', fx: { kind: 'executeBonus', power: 22 }, fxDesc: '+22% damage to enemies below 50% HP.', lore: 'You hear them coming. That is the point.' },
+  { id: 'lg_n16', slot: 'talisman', tier: 'legendary', name: 'Tear of the First Dawn', fx: { kind: 'avenger', power: 25 }, fxDesc: 'When an ally falls: +25% ATK for the rest of battle (stacks).', lore: 'The first sunrise saw the first loss, and wept exactly once.' },
+  { id: 'lg_n17', slot: 'talisman', tier: 'legendary', name: 'Blood-Debt Reliquary', fx: { kind: 'lifesteal', power: 20 }, fxDesc: 'Heal for 20% of all damage you deal.', lore: 'All debts are payable in one currency. It makes change.' },
+  { id: 'lg_n18', slot: 'talisman', tier: 'legendary', name: 'Eye of the Sleeping Storm', fx: { kind: 'energyStart', power: 500 }, fxDesc: 'Begin battle with +500 Energy.', lore: 'The storm is asleep. You are holding its alarm clock.' },
+  { id: 'lg_n19', slot: 'talisman', tier: 'legendary', name: 'Seismic Heartstone', fx: { kind: 'critDmg', power: 48 }, fxDesc: 'Critical hits deal +48% more damage.', lore: 'A pebble from Lemon Quake\'s coronation. It still shakes with applause.' },
+  { id: 'lg_n20', slot: 'talisman', tier: 'legendary', name: 'Sovereign\'s Iron Promise', fx: { kind: 'vitality', power: 18 }, fxDesc: '+18% Max HP at battle start.', lore: 'Kings die. Promises made in iron do not.' },
 
   /* ---------- AETHER (30) — effects found NOWHERE else ---------- */
   { id: 'ae_w1', slot: 'weapon', tier: 'aether', name: 'Riftrender, Fang of Leodones', fx: { kind: 'echoStrike', power: 0.45 }, fxDesc: 'AETHER · Basic attacks ECHO, striking the target again for 45% ATK.', lore: 'The Rift bit back once. This is the tooth it left in the world.' },
@@ -2280,11 +2374,138 @@ DATA.DUNGEONS = {
     }
     return rw;
   },
-  /* Rift relic odds per clear */
-  ITEM_ROLL: [ { tier: 'epic', w: 58 }, { tier: 'legendary', w: 32 }, { tier: 'aether', w: 10 } ],
+  /* Rift relic odds per clear (Conquest Tier 0 baseline — see DATA.CONQUEST.itemRoll) */
+  ITEM_ROLL: [ { tier: 'epic', w: 44 }, { tier: 'mystic', w: 24 }, { tier: 'ultimate', w: 14 }, { tier: 'legendary', w: 12 }, { tier: 'aether', w: 6 } ],
 };
 DATA.DUNGEON_BY_ID = {};
 DATA.DUNGEONS.list.forEach(dg => { DATA.DUNGEON_BY_ID[dg.id] = dg; });
+
+/* ============================================================
+   WARLORD CONQUEST — the raid-reset engine.
+   Burn all of a dungeon's daily raids and its AREA WARLORD
+   emerges. Slay the Warlord: that dungeon's raids RESET on the
+   spot and its Conquest Tier rises permanently (max 5).
+   Higher tiers = stronger forces, richer payouts, and named
+   relics dropping from ANY dungeon — rarer tiers the deeper
+   the conquest. Warlord retries are FREE, like all raids.
+   ============================================================ */
+DATA.CONQUEST = {
+  maxTier: 5,
+  // Warlord fights punch ABOVE your campaign wall — this is the boss of the area
+  warlordStageEq(maxStage, dg, tier) {
+    return Math.max(4, Math.round(Math.min(maxStage, DATA.MAX_STAGE) * (0.95 + tier * 0.06)) + (dg.offset || 0) + 4);
+  },
+  warlordMult: tier => 1.75 + tier * 0.2,
+  raidStageBonus: tier => tier * 3,            // dungeon enemies climb per tier
+  lootMult: tier => 1 + tier * 0.25,           // gold/xp/dust payout per tier
+  // chance for a named relic on ANY dungeon clear (the Rift always rolls)
+  itemChance: tier => [0, 0.10, 0.16, 0.22, 0.30, 0.40][Math.min(tier, 5)],
+  // relic tier odds sharpen with conquest — "much rarer items"
+  itemRoll(tier) {
+    return [
+      { tier: 'epic',      w: Math.max(8, 44 - tier * 7) },
+      { tier: 'mystic',    w: 24 },
+      { tier: 'ultimate',  w: 14 + tier * 3 },
+      { tier: 'legendary', w: 12 + tier * 3 },
+      { tier: 'aether',    w: 6 + tier * 2 },
+    ];
+  },
+  // Warlord kill loot (on top of the Warlord Chest + relic)
+  warlordReward(stageEq, tier) {
+    const base = DATA.stageClearRewards(Math.min(stageEq, DATA.MAX_STAGE));
+    return {
+      gold: Math.round(base.gold * 2),
+      xp: Math.round(base.xp * 2),
+      dust: Math.round(40 + stageEq * 1.6),
+      diamonds: Math.round((150 + tier * 50) * 1.75),
+    };
+  },
+  // one-time trophy the first time each dungeon reaches each tier
+  trophy: tier => ({ diamonds: Math.round((120 + tier * 80) * 1.75), scrolls: tier >= 3 ? 2 : 1, dust: 60 + tier * 40 }),
+};
+
+/* ---------------- Rift Surge — daily rotating raid events ----------------
+   Two dungeons SURGE each day: +1 raid attempt and DOUBLE payout. */
+DATA.SURGE = {
+  count: 2, extraAttempts: 1, lootMult: 2,
+  dungeonsOfDay(dayKey) {
+    let h = 0;
+    String(dayKey).split('').forEach(c => { h = (h * 131 + c.charCodeAt(0)) >>> 0; });
+    const list = DATA.DUNGEONS.list;
+    const a = h % list.length;
+    const b = (a + 1 + ((h >>> 3) % (list.length - 1))) % list.length;
+    return [list[a].id, list[b].id];
+  },
+};
+
+/* ---------------- Golden Loot Wisp ----------------
+   A rare glowing freeloader sneaks into dungeon waves. Win the
+   raid while it's on the field and it bursts into bonus treasure. */
+DATA.WISP = {
+  chance: 0.12,          // per raid
+  itemChance: 0.25,      // wisp bonus can carry a named relic
+  reward(maxStage) {
+    const se = Math.round(Math.min(maxStage, DATA.MAX_STAGE) * 0.8);
+    const base = DATA.stageClearRewards(Math.max(1, se));
+    return { gold: Math.round(base.gold * 1.5), dust: Math.round(30 + se * 1.2), diamonds: Math.round(120 * 1.75) };
+  },
+};
+DATA.WISP_UNIT = {
+  id: 'golden_wisp', name: 'Golden Loot Wisp', role: 'support',
+  base: { hp: 700, atk: 20, def: 10, spd: 130 }, crit: 0,
+  model: { body: 'slim', bulk: 0.7, height: 0.75, weapon: 'orb', headgear: 'halo',
+    palette: { primary: '#f5c542', secondary: '#ffd94d', accent: '#fff6d8', skin: '#ffe9a0' } },
+  skill: { name: 'Glitter Scatter', cd: 9, spec: { type: 'heal', target: 'lowestAlly', mult: 0.5 } },
+};
+
+/* ---------------- Realm Happenings — daily global events ---------------- */
+DATA.REALM_EVENTS = [
+  { id: 'goldrush',  name: 'Gold Rush',      glyph: '💰', desc: '+50% Gold from campaign stages and dungeon raids today', gold: 1.5 },
+  { id: 'scholars',  name: "Scholars' Day",  glyph: '📗', desc: '+50% XP from campaign stages and dungeon raids today', xp: 1.5 },
+  { id: 'stormfront',name: 'Stormfront',     glyph: '🌩️', desc: '+1 raid attempt on EVERY dungeon today', extraRaids: 1 },
+  { id: 'relicfever',name: 'Relic Fever',    glyph: '🌀', desc: 'Named-relic drop chances DOUBLED in dungeon raids today', relicLuck: 2 },
+  { id: 'dustdevils',name: 'Dust Devils',    glyph: '✨', desc: '+75% Gear Dust from dungeon raids today', dust: 1.75 },
+  { id: 'bountyboom',name: 'Bounty Boom',    glyph: '🎯', desc: 'Bounty Hunt rewards +50% today', bounty: 1.5 },
+];
+DATA.eventOfDay = function (dayKey) {
+  let h = 0;
+  String(dayKey).split('').forEach(c => { h = (h * 33 + c.charCodeAt(0)) >>> 0; });
+  return DATA.REALM_EVENTS[h % DATA.REALM_EVENTS.length];
+};
+
+/* ---------------- Bounty Hunts — daily marks on conquered ground ----------
+   Three stages you've already beaten go rogue each day. Put them
+   back down for doubled spoils, guaranteed gear and a relic shot. */
+DATA.BOUNTY = {
+  perDay: 3,
+  itemChance: 0.15,
+  gearRarities: ['rare', 'epic', 'mythic'],
+  reward(stage, evtMult) {
+    const base = DATA.stageClearRewards(stage);
+    const m = 2 * (evtMult || 1);
+    return {
+      gold: Math.round(base.gold * m),
+      xp: Math.round(base.xp * m),
+      dust: Math.round(20 + stage * 1.2),
+      diamonds: Math.round(80 * 1.75),
+    };
+  },
+};
+
+/* ---------------- Relic Fusion — 3 relics forge 1 of the next tier ------- */
+DATA.FUSION = {
+  need: 3,
+  goldCost: tier => ({ epic: 20000, mystic: 60000, ultimate: 150000, legendary: 400000 }[tier] || 20000),
+};
+
+/* ---------------- Battlefield Salvage — bonus drops on normal clears -----
+   Every NON-boss campaign clear has a 30% chance (45% on elite
+   stages) to shake loose a bonus Common–Rare drop. */
+DATA.BONUS_DROP = {
+  chance: 0.30,
+  eliteChance: 0.45,
+  rarities: ['common', 'common', 'fine', 'fine', 'rare'],
+};
 
 /* ============================================================
    CHESTS — 5 core kinds + Special Chests + Boss Chest.
@@ -2389,6 +2610,20 @@ DATA.CHESTS = [
       { kind: 'diamonds', amt: [525, 1575], w: 8 },
     ],
   },
+  {
+    id: 'warlord', name: 'Warlord Chest', glyph: '⚔️', tier: 'boss', costD: 1600, color: '#ff9100',
+    desc: 'CONQUEST LOOT — torn from a fallen Area Warlord. Guaranteed Mystic+ named relic inside.',
+    rolls: 4, guaranteed: { kind: 'item', tiers: ['mystic', 'mystic', 'ultimate'] },
+    table: [
+      { kind: 'item', tiers: ['epic', 'mystic'], w: 20 },
+      { kind: 'item', tiers: ['ultimate'], w: 10 },
+      { kind: 'item', tiers: ['legendary'], w: 6 },
+      { kind: 'dust', amt: [200, 380], w: 22 },
+      { kind: 'gold', idleMin: 160, w: 14 },
+      { kind: 'gear', rarities: ['epic', 'mythic'], w: 18 },
+      { kind: 'diamonds', amt: [700, 1750], w: 10 },
+    ],
+  },
 
   /* ---- CHESTS OF AGDAO — 5 themed chests, 2500→7500 💎.
      The only Store source of NAMED relics (Epic/Legendary/AETHER). ---- */
@@ -2409,12 +2644,12 @@ DATA.CHESTS = [
     id: 'salmon_trove', name: "Tidecaller's Trove", glyph: '🐚', tier: 'themed', costD: 3750, color: '#38b6ff',
     region: 'New Salmon',
     desc: 'NEW SALMON — hauled from the Salmonrun deeps. Named relic guaranteed; the tide sometimes brings Legendary.',
-    rolls: 3, guaranteed: { kind: 'item', tiers: ['epic', 'epic', 'legendary'] },
+    rolls: 3, guaranteed: { kind: 'item', tiers: ['epic', 'mystic', 'legendary'] },
     table: [
       { kind: 'dust', amt: [180, 320], w: 24 },
       { kind: 'scrolls', amt: [1, 2], w: 20 },
       { kind: 'gear', rarities: ['epic', 'mythic'], w: 20 },
-      { kind: 'item', tiers: ['epic', 'legendary'], w: 18 },
+      { kind: 'item', tiers: ['epic', 'mystic', 'legendary'], w: 18 },
       { kind: 'diamonds', amt: [700, 1750], w: 18 },
     ],
   },
@@ -2422,9 +2657,9 @@ DATA.CHESTS = [
     id: 'aespo_vault', name: 'Stormforged Vault', glyph: '⚡', tier: 'themed', costD: 5000, color: '#ffe86a',
     region: 'Great Aespo',
     desc: 'GREAT AESPO — sealed by lightning, opened by the worthy. Even odds of a Legendary relic inside.',
-    rolls: 4, guaranteed: { kind: 'item', tiers: ['epic', 'legendary'] },
+    rolls: 4, guaranteed: { kind: 'item', tiers: ['mystic', 'ultimate', 'legendary'] },
     table: [
-      { kind: 'item', tiers: ['epic', 'legendary'], w: 24 },
+      { kind: 'item', tiers: ['mystic', 'ultimate', 'legendary'], w: 24 },
       { kind: 'dust', amt: [240, 420], w: 20 },
       { kind: 'scrolls', amt: [2, 3], w: 18 },
       { kind: 'gear', rarities: ['mythic'], w: 18 },
@@ -2438,7 +2673,7 @@ DATA.CHESTS = [
     desc: 'ASTORVIA — the Dawnspire\'s war-tithe. A GUARANTEED Legendary named relic, blessed at first light.',
     rolls: 4, guaranteed: { kind: 'item', tiers: ['legendary'] },
     table: [
-      { kind: 'item', tiers: ['epic', 'legendary'], w: 26 },
+      { kind: 'item', tiers: ['ultimate', 'legendary'], w: 26 },
       { kind: 'scrolls', amt: [2, 4], w: 20 },
       { kind: 'champcopy', rarities: ['elite', 'epic', 'mystic'], w: 16 },
       { kind: 'dust', amt: [300, 520], w: 16 },
@@ -2454,7 +2689,7 @@ DATA.CHESTS = [
     table: [
       { kind: 'item', tiers: ['legendary'], w: 26 },
       { kind: 'item', tiers: ['aether'], w: 14 },
-      { kind: 'item', tiers: ['epic', 'legendary'], w: 16 },
+      { kind: 'item', tiers: ['ultimate', 'legendary'], w: 16 },
       { kind: 'diamonds', amt: [1400, 3500], w: 16 },
       { kind: 'scrolls', amt: [2, 4], w: 16 },
       { kind: 'dust', amt: [360, 620], w: 12 },

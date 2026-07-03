@@ -3481,3 +3481,69 @@ body.view-mode-pc .hud-quick { top: 74px; right: 18px; }
 body.view-mode-pc .screen-agdao { max-width: 900px; margin: 0 auto; }
 body.view-mode-pc .agdao-layout { padding: 0 4px 24px; }
 
+/* ============================================================
+   WARLORD CONQUEST · REALM EVENTS · BOUNTIES · FUSION
+   ============================================================ */
+.event-banner {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 9px 12px; margin: 0 0 10px; border-radius: 12px;
+  background: linear-gradient(160deg, #2a1f3d, #17203a 80%);
+  border: 1px solid #7c5cff55; font-size: 12px; color: #d8d2f0;
+}
+.event-banner b { color: #ffd94d; letter-spacing: .4px; }
+.event-banner span { color: #a8b0cc; font-size: 11px; }
+.event-banner.home-event { cursor: pointer; margin: 0 0 4px; }
+.streak-chip {
+  margin-left: auto; padding: 3px 9px; border-radius: 999px;
+  background: #f5c54222; border: 1px solid #f5c54266;
+  color: #ffd94d !important; font-weight: 800; font-size: 11px !important;
+}
+.streak-chip small { color: #c8b060; font-weight: 700; }
+
+.surge-tag {
+  display: inline-block; padding: 2px 7px; border-radius: 999px; margin-left: 4px;
+  background: #ff6b3522; border: 1px solid #ff6b3588; color: #ff9d5c;
+  font-size: 9.5px; font-weight: 900; letter-spacing: .5px;
+  animation: surgePulse 1.6s ease-in-out infinite;
+}
+@keyframes surgePulse { 0%,100% { box-shadow: 0 0 0 0 #ff6b3500; } 50% { box-shadow: 0 0 12px 0 #ff6b3566; } }
+.dg-card.surging { border-color: #ff6b3588; }
+.conq-tag {
+  display: inline-block; padding: 2px 7px; border-radius: 999px; margin-left: 4px;
+  background: #ff910018; border: 1px solid #ff910066; color: #ffb75c;
+  font-size: 9.5px; font-weight: 900; letter-spacing: .5px;
+}
+.conq-text { color: #ffb75c; }
+
+.warlord-btn {
+  background: linear-gradient(160deg, #3d1420, #52142e) !important;
+  border: 1px solid #ff3355 !important; color: #ffb3c1 !important;
+  display: flex; flex-direction: column; gap: 1px;
+  animation: warlordPulse 2s ease-in-out infinite;
+}
+.warlord-btn small { font-size: 8.5px; font-weight: 700; color: #e08098; letter-spacing: .4px; }
+@keyframes warlordPulse { 0%,100% { box-shadow: 0 0 0 0 #ff335500; } 50% { box-shadow: 0 0 14px 0 #ff335555; } }
+
+.conquest-banner { background: rgba(255,145,0,0.12); border-color: #ff9100; color: #ffcf99; }
+.trophy-banner { background: rgba(245,197,66,0.12); border-color: #f5c542; color: #ffe9a0; }
+.wisp-banner { background: rgba(245,197,66,0.15); border-color: #ffd94d; color: #fff2c0; }
+.raid-extras { display: block; margin-top: 3px; font-size: 11px; color: #ffd94d; font-weight: 700; }
+.gear-drop.bonus-drop { border-style: dashed; }
+
+.bounty-panel { margin-top: 10px; }
+.bounty-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.bounty-card {
+  flex: 1 1 140px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
+  padding: 10px; border-radius: 12px;
+  background: linear-gradient(160deg, #1a2030, #141a28);
+  border: 1px solid #f5c54244;
+}
+.bounty-card b { font-size: 13px; color: #ffd94d; }
+.bounty-card small { color: var(--dim); font-size: 10px; }
+.bounty-card .btn { padding: 7px 12px; font-size: 11.5px; margin-top: 3px; }
+.bounty-card.done { opacity: .55; border-color: #3a4258; }
+.bounty-claimed { color: #58c26a; font-weight: 900; font-size: 11px; letter-spacing: .5px; margin-top: 4px; }
+
+.fusion-panel { border-color: #00e5ff44; }
+.fusion-panel .forge-head b { color: #7cf5ff; }
+

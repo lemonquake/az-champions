@@ -28,8 +28,8 @@ fun MainScreen(
           allowFileAccessFromFileURLs = true
           allowUniversalAccessFromFileURLs = true
           databaseEnabled = true
-          useWideViewPort = false
-          loadWithOverviewMode = false
+          useWideViewPort = true
+          loadWithOverviewMode = true
           mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
         webViewClient = WebViewClient()

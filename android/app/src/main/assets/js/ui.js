@@ -474,6 +474,8 @@ const UI = (() => {
           <button class="hq-btn" onclick="UI.show('achievements')">🏅<span>Feats</span>${State.claimableAchievements() > 0 ? '<i class="nbadge"></i>' : ''}</button>
         </div>
 
+        ${(() => { const evt = DATA.eventOfDay(State.dayKey()); return `<div class="event-banner home-event" onclick="UI.show('agdao')">${evt.glyph} <b>REALM EVENT — ${esc(evt.name)}</b><span>${esc(evt.desc)}</span></div>`; })()}
+
         <div class="home-cards">
           <div class="idle-chest" id="idle-chest" onclick="UI.collectIdle()">
             <div class="chest-ico">🧰</div>
@@ -641,7 +643,7 @@ const UI = (() => {
     }
 
     const allies = Combat.buildAllyUnits(d.formation);
-    let enemies, envKey, label, bossArena = false, vs = null;
+    let enemies, envKey, label, bossArena = false, vs = null, wisp = false;
 
     if (type === 'campaign') {
       enemies = Combat.buildEnemyWave(param);
@@ -686,9 +688,25 @@ const UI = (() => {
       enemies = dw.wave;
       envKey = dw.env;
       bossArena = true;
+      wisp = dw.wisp;
       const region = DATA.AGDAO_REGION_BY_ID[dw.dg.region];
-      label = `${dw.dg.glyph} ${dw.dg.name} — ${region ? region.name : 'Agdao'}`;
+      const tierTag = dw.tier ? ` ★${dw.tier}` : '';
+      label = `${dw.dg.glyph} ${dw.dg.name}${tierTag} — ${region ? region.name : 'Agdao'}`;
+      if (wisp) setTimeout(() => toast('✨ A GOLDEN LOOT WISP joined the enemy ranks — win to claim its treasure!', 'good'), 900);
       State.questProgress('mode1', 1);
+    } else if (type === 'warlord') {
+      const ww = Combat.buildWarlordWave(param);
+      enemies = ww.wave;
+      envKey = ww.env;
+      bossArena = true;
+      label = `⚔️ AREA WARLORD — ${ww.dg.glyph} ${ww.dg.name}`;
+      State.questProgress('mode1', 1);
+    } else if (type === 'bounty') {
+      enemies = Combat.buildEnemyWave(param);
+      const binfo = State.stageInfo(param);
+      envKey = binfo.chapter.env;
+      bossArena = binfo.isBoss;
+      label = `🎯 Bounty Hunt — Stage ${binfo.label}`;
     } else if (type === 'tournament') {
       const t = d.modes.tournament;
       const roundIdx = t.round;
@@ -705,7 +723,7 @@ const UI = (() => {
     }
 
     const sim = Combat.createBattle(allies, enemies, { autoUlt: d.settings.autoUlt, speed: d.settings.speed });
-    battle = { sim, type, param, label, speed: d.settings.speed || 1, resultShown: false };
+    battle = { sim, type, param, label, speed: d.settings.speed || 1, resultShown: false, wisp };
     const start = () => {
       show('battle');
       Battle3D.loadBattle(sim, envKey, bossArena);
@@ -847,8 +865,12 @@ const UI = (() => {
       State.questProgress('campaign3', 1);
       if (victory) {
         const stage = battle.param;
-        const { rw, gear } = State.winCampaignStage(stage);
+        const { rw, gear, bonusGear } = State.winCampaignStage(stage);
         html = resultHtml(true, `Stage ${State.stageInfo(stage).label} cleared!`, rw, gear);
+        if (bonusGear) {
+          const br = State.gearRarity(bonusGear);
+          html += `<div class="gear-drop bonus-drop" style="--c:${br.color}">🎁 <b>BONUS DROP</b> — ${DATA.GEAR_SLOT_INFO[bonusGear.slot].glyph} <b>${esc(State.gearName(bonusGear))}</b> <span class="raritytag">${br.name}</span></div>`;
+        }
         if (rw.unlockedChamp) {
           const c = DATA.CHAMP_BY_ID[rw.unlockedChamp];
           html += `<div class="unlock-banner">🎉 New Champion joined: <b>${esc(c.name)}</b> — ${esc(c.epithet)}!</div>`;
@@ -906,16 +928,47 @@ const UI = (() => {
       const dg = DATA.DUNGEON_BY_ID[battle.param];
       if (victory) {
         const res = State.winDungeon(battle.param);
-        html = resultHtml(true, `${esc(dg.name)} raided!`, res.rw, res.gear);
-        if (res.item) {
-          const it = DATA.ITEM_BY_ID[res.item.itemId];
-          const ti = DATA.ITEM_TIER_INFO[it.tier];
-          html += `<div class="unlock-banner relic-banner ${it.tier === 'aether' ? 'aetherfx' : ''}" style="border-color:${ti.color}">
-            🌀 <b style="color:${ti.color}">RELIC RECOVERED — ${esc(it.name)}</b> <span class="raritytag ${it.tier}" style="color:${ti.color}">${ti.name}</span>
-            <br><small>${esc(it.fxDesc)}</small></div>`;
+        const extras = [];
+        if (res.tier) extras.push(`⭐ Conquest T${res.tier}`);
+        if (res.surge) extras.push('🔥 SURGE ×2');
+        if (res.streak > 1) extras.push(`⚡ Momentum ×${res.streak} (+${Math.min(res.streak - 1, 10) * 5}%)`);
+        html = resultHtml(true, `${esc(dg.name)} raided!${extras.length ? ' <small class="raid-extras">' + extras.join(' · ') + '</small>' : ''}`, res.rw, res.gear);
+        if (res.item) html += relicBannerHtml(res.item, 'RELIC RECOVERED');
+        if (battle.wisp) {
+          const wb = State.claimWispBonus();
+          html += `<div class="unlock-banner wisp-banner">✨ <b>GOLDEN LOOT WISP BURSTS!</b> +💰${fmt(wb.rw.gold)} +✨${fmt(wb.rw.dust)} +💎${fmt(wb.rw.diamonds)}</div>`;
+          if (wb.item) html += relicBannerHtml(wb.item, 'WISP TREASURE');
         }
       } else {
+        State.breakRaidStreak();
         html = resultHtml(false, 'The dungeon holds — but dungeon retries are FREE. Regroup and raid again!');
+      }
+    } else if (battle.type === 'warlord') {
+      const dg = DATA.DUNGEON_BY_ID[battle.param];
+      if (victory) {
+        const res = State.winWarlord(battle.param);
+        html = resultHtml(true, `The AREA WARLORD of ${esc(dg.name)} falls!`, res.rw);
+        html += `<div class="unlock-banner conquest-banner">🏴 <b>CONQUEST TIER ${res.tier}${res.tierUp ? ' REACHED' : ''}</b> — ${esc(dg.name)}'s raids have <b>RESET</b>! Its forces return stronger, carrying rarer spoils.</div>`;
+        const cdef = DATA.CHEST_BY_ID['warlord'];
+        html += `<div class="unlock-banner">🎁 War spoils: <b style="color:${cdef.color}">${cdef.glyph} ${esc(cdef.name)}</b>! Open it in the Store.</div>`;
+        if (res.item) html += relicBannerHtml(res.item, 'WARLORD RELIC');
+        if (res.trophy) html += `<div class="unlock-banner trophy-banner">🏆 <b>FIRST CONQUEST TROPHY</b> — +💎${fmt(res.trophy.diamonds)} +📜${res.trophy.scrolls} +✨${fmt(res.trophy.dust)}</div>`;
+      } else {
+        State.breakRaidStreak();
+        html = resultHtml(false, 'The Warlord holds the field — but Warlord challenges are FREE. Regroup and strike again!');
+      }
+    } else if (battle.type === 'bounty') {
+      const bstage = battle.param;
+      if (victory) {
+        const res = State.winBounty(bstage);
+        if (res) {
+          html = resultHtml(true, `🎯 Bounty collected — Stage ${State.stageInfo(bstage).label} pacified!`, res.rw, res.gear);
+          if (res.item) html += relicBannerHtml(res.item, 'BOUNTY RELIC');
+        } else {
+          html = resultHtml(true, 'This bounty was already collected today.');
+        }
+      } else {
+        html = resultHtml(false, 'The mark escapes… the bounty stays open. Try again — attempts are FREE.');
       }
     } else if (battle.type === 'tournament') {
       const { roundIdx, rival } = battle.param;
@@ -936,11 +989,13 @@ const UI = (() => {
     }
     State.save();
 
-    const returnScreen = battle.type === 'campaign' ? 'home' : (battle.type === 'dungeon' ? 'agdao' : battle.type);
+    const returnScreen = battle.type === 'campaign' ? 'home' : (['dungeon', 'warlord', 'bounty'].includes(battle.type) ? 'agdao' : battle.type);
     const brNext = victory && battle.type === 'bossrush' && battle.param < DATA.BOSSRUSH.rounds;
     const trNext = victory && battle.type === 'trials' && battle.param < DATA.TRIALS.tiers;
     const tourNext = victory && battle.type === 'tournament' && State.data.modes.tournament.active;
-    const dgNext = battle.type === 'dungeon' && State.dungeonRunsLeft(battle.param) > 0;
+    const dgNext = ['dungeon', 'warlord'].includes(battle.type) && State.dungeonRunsLeft(battle.param) > 0;
+    const wlNow = battle.type === 'dungeon' && State.dungeonRunsLeft(battle.param) === 0;
+    const wlRetry = battle.type === 'warlord' && !victory;
     modal(`
       <div class="result ${victory ? 'win' : 'lose'}">
         <div class="result-title">${victory ? 'VICTORY' : 'DEFEAT'}</div>
@@ -955,6 +1010,8 @@ const UI = (() => {
           ${trNext ? `<button class="btn gold" onclick="UI.closeModal();UI.beginBattle('trials', ${battle.param + 1})">TIER ${battle.param + 1} ▶</button>` : ''}
           ${tourNext ? `<button class="btn gold" onclick="UI.closeModal();UI.beginBattle('tournament')">NEXT MATCH ▶</button>` : ''}
           ${dgNext ? `<button class="btn gold" onclick="UI.closeModal();UI.beginBattle('dungeon','${battle.param}')">⚔️ RAID AGAIN ▶</button>` : ''}
+          ${wlNow ? `<button class="btn gold warlord-btn" onclick="UI.closeModal();UI.fightWarlord('${battle.param}')">🏴 CHALLENGE THE AREA WARLORD ▶</button>` : ''}
+          ${wlRetry ? `<button class="btn gold warlord-btn" onclick="UI.closeModal();UI.beginBattle('warlord','${battle.param}')">🏴 CHALLENGE AGAIN ▶</button>` : ''}
           <button class="btn" onclick="UI.closeModal();UI.handlePostBattleContinuation('${returnScreen}')">CONTINUE</button>
         </div>
       </div>`, { sticky: true });
@@ -1022,6 +1079,16 @@ const UI = (() => {
         </div>
       </div>
     `, { sticky: true });
+  }
+
+  /* banner for a dropped NAMED relic (dungeons, warlords, bounties, wisps) */
+  function relicBannerHtml(gRec, headline) {
+    const it = DATA.ITEM_BY_ID[gRec.itemId];
+    if (!it) return '';
+    const ti = DATA.ITEM_TIER_INFO[it.tier];
+    return `<div class="unlock-banner relic-banner ${it.tier === 'aether' ? 'aetherfx' : ''}" style="border-color:${ti.color}">
+      🌀 <b style="color:${ti.color}">${headline || 'RELIC RECOVERED'} — ${esc(it.name)}</b> <span class="raritytag ${it.tier}" style="color:${ti.color}">${ti.name}</span>
+      <br><small>${esc(it.fxDesc)}</small></div>`;
   }
 
   function resultHtml(victory, msg, rw, gear) {
@@ -1623,6 +1690,8 @@ const UI = (() => {
 
       const locked = ms < selR.unlockStage;
       const dgs = DATA.DUNGEONS.list.filter(d => d.region === selR.id);
+      const evt = DATA.eventOfDay(State.dayKey());
+      const streak = (State.data.dungeons && State.data.dungeons.streak) || 0;
       const panel = `
         <div class="ag-panel ${selR.rift ? 'aetherfx' : ''}" style="--rc:${selR.color}">
           <div class="ag-panel-head">
@@ -1633,25 +1702,53 @@ const UI = (() => {
           ${locked
             ? `<div class="ag-locked">🔒 Clear <b>Stage ${State.stageInfo(selR.unlockStage).label}</b> of the campaign to unlock ${esc(selR.name)}.</div>`
             : dgs.map(dg => {
+                const tier = State.conquestTier(dg.id);
+                const surge = State.isSurging(dg.id);
                 const fi = DATA.DUNGEONS.FOCUS_INFO[dg.focus];
-                const se = DATA.DUNGEONS.stageEq(ms, dg);
+                const se = DATA.DUNGEONS.stageEq(ms, dg) + DATA.CONQUEST.raidStageBonus(tier);
+                const cap = State.dungeonAttemptCap(dg.id);
                 const left = State.dungeonRunsLeft(dg.id);
+                const warlord = left === 0;
                 return `
-                <div class="dg-card ${dg.focus === 'item' ? 'aetherfx' : ''}" style="--rc:${selR.color}">
+                <div class="dg-card ${dg.focus === 'item' ? 'aetherfx' : ''} ${surge ? 'surging' : ''}" style="--rc:${selR.color}">
                   <div class="dg-glyph">${dg.glyph}</div>
                   <div class="dg-info">
                     <b>${esc(dg.name)}</b> <span class="dg-focus">${fi.glyph} ${fi.label}</span>
+                    ${surge ? '<span class="surge-tag">🔥 SURGE ×2</span>' : ''}
+                    ${tier ? `<span class="conq-tag" title="Conquest Tier">${'⭐'.repeat(tier)} T${tier}</span>` : ''}
                     <p>${esc(dg.desc)}</p>
-                    <div class="dg-meta">Enemy Lv ~${DATA.enemyLevelForStage(se)} · ${esc(fi.blurb)} · <b class="${left ? 'good-text' : 'dim'}">${left}/${DATA.DUNGEONS.attemptsPerDay} raids left today</b></div>
+                    <div class="dg-meta">Enemy Lv ~${DATA.enemyLevelForStage(se)} · ${esc(fi.blurb)}${tier ? ` · <b class="conq-text">+${tier * 25}% loot</b>` : ''} · <b class="${left ? 'good-text' : 'dim'}">${left}/${cap} raids left today</b></div>
                   </div>
-                  <button class="btn ${left ? 'gold' : 'disabled'}" onclick="UI.raidDungeon('${dg.id}')">⚔️ RAID</button>
+                  ${warlord
+                    ? `<button class="btn gold warlord-btn" onclick="UI.fightWarlord('${dg.id}')">🏴 WARLORD<small>beat to RESET raids</small></button>`
+                    : `<button class="btn gold" onclick="UI.raidDungeon('${dg.id}')">⚔️ RAID</button>`}
                 </div>`;
               }).join('')}
         </div>`;
 
+      /* daily Bounty Hunts — marks on stages you've already conquered */
+      const marks = State.bountyMarks();
+      const bountyPanel = marks.length ? `
+        <div class="ag-panel bounty-panel">
+          <div class="ag-panel-head"><span class="ag-panel-glyph">🎯</span>
+            <div class="ag-panel-titles"><b>Bounty Hunts</b><span class="ag-title">Three marks resurface each day on conquered ground — collect for doubled spoils${evt.bounty ? ' <b class="good-text">(+50% today!)</b>' : ''}</span></div>
+          </div>
+          <div class="bounty-row">
+            ${marks.map(s => {
+              const done = State.bountyDone(s);
+              const bi = State.stageInfo(s);
+              return `<div class="bounty-card ${done ? 'done' : ''}">
+                <b>Stage ${bi.label}</b><small>${esc(bi.chapter.name)}</small>
+                ${done ? '<span class="bounty-claimed">✔ COLLECTED</span>' : `<button class="btn gold" onclick="UI.fightBounty(${s})">🎯 HUNT</button>`}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : '';
+
       return `
         <div class="pagehead"><button class="backbtn modern-back" onclick="UI.show('home')"><span class="arrow">←</span> BACK</button><h2>Map of Agdao</h2></div>
         <div class="agdao-layout">
+          <div class="event-banner">${evt.glyph} <b>REALM EVENT — ${esc(evt.name)}</b><span>${esc(evt.desc)}</span>${streak > 1 ? `<span class="streak-chip">⚡ MOMENTUM ×${streak} <small>+${Math.min(streak - 1, 10) * 5}% raid loot</small></span>` : ''}</div>
           <div class="agdao-map">
             <svg viewBox="0 0 800 560" preserveAspectRatio="xMidYMid meet">
               <defs>
@@ -1681,7 +1778,8 @@ const UI = (() => {
             </svg>
           </div>
           ${panel}
-          <div class="hint center">Dungeon enemies scale to ~80% of your campaign wall — when a Boss stops you, farm here, power up, and break through. Attempts only count on VICTORY.</div>
+          ${bountyPanel}
+          <div class="hint center">Dungeon enemies scale to ~80% of your campaign wall — when a Boss stops you, farm here, power up, and break through. Attempts only count on VICTORY.<br>Raided everything? The <b>🏴 AREA WARLORD</b> emerges — slay it to RESET the dungeon's raids and raise its <b>Conquest Tier</b>: stronger forces, rarer relics, richer loot.</div>
         </div>`;
     },
   };
@@ -1695,8 +1793,28 @@ const UI = (() => {
     if (!dg) return;
     const r = DATA.AGDAO_REGION_BY_ID[dg.region];
     if (State.data.campaign.maxStage < r.unlockStage) { GameAudio.sfx('error'); toast(`Reach Stage ${State.stageInfo(r.unlockStage).label} to unlock ${r.name}`, 'bad'); return; }
-    if (State.dungeonRunsLeft(dgId) < 1) { GameAudio.sfx('error'); toast('No raids left today — resets at midnight', 'bad'); return; }
+    if (State.dungeonRunsLeft(dgId) < 1) { GameAudio.sfx('error'); toast('Raids exhausted — challenge the 🏴 AREA WARLORD to reset them!', 'bad'); return; }
     beginBattle('dungeon', dgId);
+  }
+  function fightWarlord(dgId) {
+    const dg = DATA.DUNGEON_BY_ID[dgId];
+    if (!dg) return;
+    const r = DATA.AGDAO_REGION_BY_ID[dg.region];
+    if (State.data.campaign.maxStage < r.unlockStage) { GameAudio.sfx('error'); toast(`Reach Stage ${State.stageInfo(r.unlockStage).label} to unlock ${r.name}`, 'bad'); return; }
+    if (!State.warlordAvailable(dgId)) { GameAudio.sfx('error'); toast('The Warlord only emerges once the dungeon is raided out', 'bad'); return; }
+    const tier = State.conquestTier(dgId);
+    modal(`
+      <h3 class="center">🏴 AREA WARLORD — ${esc(dg.name)}</h3>
+      <p class="center">The dungeon is raided out… and its <b>WARLORD</b> has taken the field with a full honor guard, stronger than anything inside.</p>
+      <p class="center dim">Victory: raids <b>RESET instantly</b> · Conquest rises to <b>Tier ${Math.min(DATA.CONQUEST.maxTier, tier + 1)}</b> · Warlord Chest + guaranteed named relic${tier < DATA.CONQUEST.maxTier ? ' · First-conquest trophy' : ''}.<br>Defeat costs nothing — Warlord challenges are FREE.</p>
+      <div class="modal-btns">
+        <button class="btn gold warlord-btn" onclick="UI.closeModal();UI.beginBattle('warlord','${dgId}')">⚔️ TO BATTLE</button>
+        <button class="btn" onclick="UI.closeModal()">Not yet</button>
+      </div>`);
+  }
+  function fightBounty(stage) {
+    if (State.bountyDone(stage)) { GameAudio.sfx('error'); toast('Bounty already collected today', 'bad'); return; }
+    beginBattle('bounty', stage);
   }
 
   /* ---------------- STORE ---------------- */
@@ -2486,6 +2604,23 @@ const UI = (() => {
           </div>
         </div>
 
+        <div class="forge-panel fusion-panel">
+          <div class="forge-head">🌀 <b>Relic Fusion</b>
+            <span class="forge-pity">Sacrifice <b>3</b> unequipped named relics of a tier → <b>1 relic of the NEXT tier</b></span></div>
+          <div class="forge-grid">
+            ${DATA.ITEM_TIER_ORDER.slice(0, -1).map(t => {
+              const ti = DATA.ITEM_TIER_INFO[t];
+              const next = DATA.ITEM_TIER_INFO[DATA.ITEM_TIER_ORDER[DATA.ITEM_TIER_ORDER.indexOf(t) + 1]];
+              const have = State.fusableRelics(t).length;
+              const ok = have >= DATA.FUSION.need && State.canAfford({ gold: DATA.FUSION.goldCost(t) });
+              return `<button class="forge-opt ${ok ? '' : 'disabled'}" style="--fc:${ti.color}" onclick="UI.openFusion('${t}')">
+                <b style="color:${ti.color}">${ti.name} ▶ <span style="color:${next.color}">${next.name}</span></b>
+                <small>${have}/${DATA.FUSION.need} owned · 💰${fmt(DATA.FUSION.goldCost(t))}</small>
+              </button>`;
+            }).join('')}
+          </div>
+        </div>
+
         <div class="filter-row" style="margin-bottom:10px;">
           <div class="filter-pills">
             ${slots.map(s => `<div class="filter-pill ${invSlotFilter === s ? 'active' : ''}" onclick="UI.setInvFilter('${s}')">${s === 'all' ? 'All' : DATA.GEAR_SLOT_INFO[s].glyph + ' ' + DATA.GEAR_SLOT_INFO[s].name}</div>`).join('')}
@@ -2546,6 +2681,51 @@ const UI = (() => {
         </div>
         <div class="modal-btns">
           <button class="btn gold" onclick="UI.closeModal();UI.gearDetail('${g.id}')">INSPECT</button>
+          <button class="btn" onclick="UI.closeModal();UI.show('inventory')">DONE</button>
+        </div>
+      </div>`, { sticky: true });
+  }
+
+  /* ---------- Relic Fusion ---------- */
+  function openFusion(tier) {
+    const ti = DATA.ITEM_TIER_INFO[tier];
+    const nextT = DATA.ITEM_TIER_ORDER[DATA.ITEM_TIER_ORDER.indexOf(tier) + 1];
+    if (!nextT) return;
+    const nti = DATA.ITEM_TIER_INFO[nextT];
+    const pool = State.fusableRelics(tier);
+    if (pool.length < DATA.FUSION.need) { GameAudio.sfx('error'); toast(`Need ${DATA.FUSION.need} unequipped ${ti.name} relics`, 'bad'); return; }
+    const cost = DATA.FUSION.goldCost(tier);
+    if (!State.canAfford({ gold: cost })) { GameAudio.sfx('error'); toast('Not enough gold', 'bad'); return; }
+    const feed = pool.slice(0, DATA.FUSION.need);
+    modal(`
+      <h3 class="center">🌀 Fuse <span style="color:${ti.color}">${ti.name}</span> → <span style="color:${nti.color}">${nti.name}</span></h3>
+      <p class="center dim">These 3 relics will be consumed (lowest-enhanced first) for 💰${fmt(cost)}:</p>
+      ${feed.map(g => `<div class="gear-drop" style="--c:${ti.color}">${DATA.GEAR_SLOT_INFO[g.slot].glyph} <b>${esc(State.gearName(g))}</b>${g.level ? ` +${g.level}` : ''}</div>`).join('')}
+      <div class="modal-btns">
+        <button class="btn gold" onclick="UI.doFusion('${tier}')">🌀 FUSE</button>
+        <button class="btn" onclick="UI.closeModal()">Cancel</button>
+      </div>`);
+  }
+  function doFusion(tier) {
+    const res = State.fuseRelics(tier);
+    closeModal();
+    if (!res) { GameAudio.sfx('error'); toast('Fusion failed — relics or gold missing', 'bad'); return; }
+    GameAudio.sfx('elite');
+    refreshTopbar();
+    const ti = DATA.ITEM_TIER_INFO[res.item.tier];
+    modal(`
+      <div class="chest-reveal jackpot" style="--cc:${ti.color}">
+        <div class="cr-chest">🌀</div>
+        <h3 class="center" style="color:${ti.color}">FUSION COMPLETE — ${ti.name.toUpperCase()}!</h3>
+        <div class="cr-loot">
+          <div class="cr-item jackpot" style="--d:.3s">
+            <div class="cri-glyph">${DATA.GEAR_SLOT_INFO[res.gear.slot].glyph}</div>
+            <div class="cri-label">${esc(res.item.name)}</div>
+            <div class="cri-amt">${esc(res.item.fxDesc)}</div>
+          </div>
+        </div>
+        <div class="modal-btns">
+          <button class="btn gold" onclick="UI.closeModal();UI.gearDetail('${res.gear.id}')">INSPECT</button>
           <button class="btn" onclick="UI.closeModal();UI.show('inventory')">DONE</button>
         </div>
       </div>`, { sticky: true });
@@ -2733,7 +2913,7 @@ const UI = (() => {
     setInvFilter, openForgeSlotPick, doCraft, gearDetail, gearDetailEnhance, gearDetailSalvage,
     claimAchievement, showStreakModal, closeStreakModal,
     doSweep, presetSave, presetLoad, doOptimize,
-    selectRegion, raidDungeon,
+    selectRegion, raidDungeon, fightWarlord, fightBounty, openFusion, doFusion,
     get battle() { return battle; },
   };
 })();

@@ -42,6 +42,7 @@ const Combat = (() => {
       shields: [],            // {amount, dur, thornsBurn?}
       killStacks: 0,
       below50Fired: false,
+      rageFired: false, standFired: false, frenzyStacks: 0,   // relic low-HP / on-kill triggers
       regenTimer: 0,
       resUsed: false,          // Divine Resurrection (once per battle)
       emergencyUsed: false,    // Healer emergency all-heal (once per battle)
@@ -137,6 +138,20 @@ const Combat = (() => {
         case 'dodge':       addStatus(B, u, { kind: 'dodge', power: f.power, dur: 9999, chance: 100 }, u); break;
         case 'critUp':      addStatus(B, u, { kind: 'critUp', power: f.power, dur: 9999, chance: 100 }, u); break;
         case 'phaseShift':  u.phaseCharges += (f.charges || 0); break;
+        case 'vitality': {
+          const bonus = Math.round(u.maxHp * f.power / 100);
+          u.maxHp += bonus; u.hp += bonus;
+          break;
+        }
+        case 'might':       addStatus(B, u, { kind: 'atkUp', power: f.power, dur: 9999, chance: 100 }, u); break;
+        case 'rally':
+          ev(B, { t: 'passive', unit: u.uid, name: 'RALLY' });
+          mates(B, u).forEach(m => addStatus(B, m, { kind: 'atkUp', power: f.power, dur: f.dur || 10, chance: 100 }, u));
+          break;
+        case 'wardAura':
+          ev(B, { t: 'passive', unit: u.uid, name: 'WARD' });
+          mates(B, u).forEach(m => addShield(B, m, getStat(B, u, 'atk') * f.power, 10));
+          break;
       }
     });
     if (fxHas(u, 'guardianAngel')) u.hasAngel = true;
@@ -337,6 +352,17 @@ const Combat = (() => {
         (p.status || []).forEach(st => addStatus(B, target, st, target));
         ev(B, { t: 'passive', unit: target.uid, name: target.kit.passive.name });
       }
+      // named-relic low-HP triggers
+      if (!target.rageFired && target.hp / target.maxHp < 0.5 && fxHas(target, 'berserkRage')) {
+        target.rageFired = true;
+        addStatus(B, target, { kind: 'atkUp', power: fxSum(target, 'berserkRage'), dur: 9999, chance: 100 }, target);
+        ev(B, { t: 'passive', unit: target.uid, name: 'BERSERK RAGE' });
+      }
+      if (!target.standFired && target.hp / target.maxHp < 0.3 && fxHas(target, 'lastStand')) {
+        target.standFired = true;
+        addShield(B, target, getStat(B, target, 'atk') * fxSum(target, 'lastStand') / 100, 8);
+        ev(B, { t: 'passive', unit: target.uid, name: 'LAST STAND' });
+      }
     }
 
     // crit passives on source
@@ -396,7 +422,24 @@ const Combat = (() => {
           healUnit(B, killer, killer, killer.maxHp * (f.hpPct || 0) / 100);
           gainEnergy(B, killer, f.energy || 0);
         });
+        // named-relic Frenzy: kills stack Speed (refresh takes max power,
+        // so pass the growing total)
+        fxAll(killer, 'frenzyKill').forEach(f => {
+          if (killer.frenzyStacks < (f.max || 5)) {
+            killer.frenzyStacks++;
+            addStatus(B, killer, { kind: 'haste', power: f.power * killer.frenzyStacks, dur: 9999, chance: 100 }, killer);
+            ev(B, { t: 'passive', unit: killer.uid, name: 'FRENZY ×' + killer.frenzyStacks });
+          }
+        });
       }
+      // named-relic Avenger: surviving allies rage at a fallen comrade
+      mates(B, u).forEach(m => {
+        const av = fxSum(m, 'avenger');
+        if (av > 0) {
+          addStatus(B, m, { kind: 'atkUp', power: av, dur: 9999, chance: 100 }, m);
+          ev(B, { t: 'passive', unit: m.uid, name: 'AVENGER' });
+        }
+      });
       return true;
     }
     return false;
@@ -592,6 +635,12 @@ const Combat = (() => {
         fxAll(u, 'bleedOnHit').forEach(f => addStatus(B, t, { kind: 'bleed', power: f.power, dur: f.dur, chance: f.chance }, u));
         fxAll(u, 'vampiricOnHit').forEach(f => addStatus(B, t, { kind: 'vampiric', power: f.power, dur: f.dur, chance: f.chance }, u));
         fxAll(u, 'stunOnHit').forEach(f => addStatus(B, t, { kind: 'stun', power: 0, dur: f.dur, chance: f.chance }, u));
+        fxAll(u, 'slowOnHit').forEach(f => addStatus(B, t, { kind: 'slow', power: f.power, dur: f.dur, chance: f.chance }, u));
+        fxAll(u, 'defShredOnHit').forEach(f => addStatus(B, t, { kind: 'defDown', power: f.power, dur: f.dur, chance: f.chance }, u));
+        fxAll(u, 'blindOnHit').forEach(f => addStatus(B, t, { kind: 'blind', power: f.power, dur: f.dur, chance: f.chance }, u));
+        fxAll(u, 'energyDrainOnHit').forEach(f => {
+          if (Math.random() * 100 < (f.chance == null ? 100 : f.chance)) t.energy = Math.max(0, t.energy - f.power);
+        });
       }
       // AETHER Echo: the basic attack strikes a second time
       const echo = fxSum(u, 'echoStrike');
@@ -614,6 +663,9 @@ const Combat = (() => {
     ev(B, { t: 'skill', unit: u.uid, name: u.kit.skill.name });
     execSpec(B, u, u.kit.skill.spec, { current: t }, { kind: 'skill' });
     gainEnergy(B, u, SKILL_ENERGY);
+    // named-relic Skill Vamp: casting your skill heals you
+    const sv = fxSum(u, 'skillVamp');
+    if (sv > 0) healUnit(B, u, u, getStat(B, u, 'atk') * sv / 100);
     u.skillCd = u.kit.skill.cd;
   }
 
@@ -949,16 +1001,37 @@ const Combat = (() => {
 
   // Dungeons (Map of Agdao): themed family boss + escort at ~80% of the
   // player's campaign wall — always beatable, always worth farming.
+  // Conquest Tiers raise the stakes; a Golden Loot Wisp may sneak in.
   function buildDungeonWave(dgId) {
     const dg = DATA.DUNGEON_BY_ID[dgId];
     const fam = DATA.ENEMY_FAMILIES[dg.family];
-    const stageEq = DATA.DUNGEONS.stageEq(State.data.campaign.maxStage, dg);
+    const tier = (State.data.dungeons.conquest && State.data.dungeons.conquest[dgId]) || 0;
+    const stageEq = DATA.DUNGEONS.stageEq(State.data.campaign.maxStage, dg) + DATA.CONQUEST.raidStageBonus(tier);
     const units = Object.values(fam.units);
-    const wave = [mkModeUnit(fam.boss, 0, stageEq, 1.25, true)];
-    for (let i = 0; i < 3; i++) wave.push(mkModeUnit(units[i % units.length], i + 1, stageEq, 0.85));
-    return { wave, dg, env: dg.env, stageEq };
+    const wave = [mkModeUnit(fam.boss, 0, stageEq, 1.25 + tier * 0.06, true)];
+    for (let i = 0; i < 3; i++) wave.push(mkModeUnit(units[i % units.length], i + 1, stageEq, 0.85 + tier * 0.04));
+    let wisp = false;
+    if (Math.random() < DATA.WISP.chance) {
+      wisp = true;
+      wave.push(mkModeUnit(DATA.WISP_UNIT, 4, stageEq, 0.4));
+    }
+    return { wave, dg, env: dg.env, stageEq, tier, wisp };
+  }
+
+  // Area Warlord: the boss of a raided-out dungeon, fielding its honor
+  // guard at FULL strength — beat it to reset raids & raise Conquest Tier.
+  function buildWarlordWave(dgId) {
+    const dg = DATA.DUNGEON_BY_ID[dgId];
+    const fam = DATA.ENEMY_FAMILIES[dg.family];
+    const tier = (State.data.dungeons.conquest && State.data.dungeons.conquest[dgId]) || 0;
+    const stageEq = DATA.CONQUEST.warlordStageEq(State.data.campaign.maxStage, dg, tier);
+    const units = Object.values(fam.units);
+    const wave = [mkModeUnit(fam.boss, 0, stageEq, DATA.CONQUEST.warlordMult(tier), true)];
+    wave[0].name = 'WARLORD ' + fam.boss.name;
+    for (let i = 0; i < 4; i++) wave.push(mkModeUnit(units[i % units.length], i + 1, stageEq, 1.0));
+    return { wave, dg, env: dg.env, stageEq, tier };
   }
 
   return { createBattle, tick, drainEvents, castUlt, buildAllyUnits, buildEnemyWave, buildTowerWave, buildArenaTeam,
-    buildBossRushWave, buildTrialsWave, buildAbyssWave, buildTournamentTeam, buildDungeonWave, ULT_COST };
+    buildBossRushWave, buildTrialsWave, buildAbyssWave, buildTournamentTeam, buildDungeonWave, buildWarlordWave, ULT_COST };
 })();

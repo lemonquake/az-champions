@@ -163,9 +163,11 @@ const State = {
         tournament: { entriesToday: 0, round: 0, active: false, titles: 0 },
       },
       chests: {},                       // chestId -> count owned (earned/purchased, opened from Store)
-      dungeons: { runsToday: {}, clears: {} },   // Map of Agdao raids
+      dungeons: { runsToday: {}, clears: {}, conquest: {}, trophies: [], streak: 0 },   // Map of Agdao raids + Warlord Conquest
+      bounties: { day: '', done: [] },  // daily Bounty Hunts
       idle: { lastCollect: now },
       pity: 0,
+      riftPity: 0,                      // relic-roll pity (guarantees rarity climb)
       totalSummons: 0,
       quests: { day: this.dayKey(), progress: {}, claimed: {}, chestsClaimed: [], points: 0 },
       purchases: [],           // {id, packId, txn, date, price}
@@ -222,6 +224,12 @@ const State = {
       if (!d.modes.tournament) d.modes.tournament = { entriesToday: 0, round: 0, active: false, titles: 0 };
       if (!d.chests) d.chests = {};
       if (!d.dungeons) d.dungeons = { runsToday: {}, clears: {} };
+      // Warlord Conquest + events expansion migrations
+      if (!d.dungeons.conquest) d.dungeons.conquest = {};
+      if (!d.dungeons.trophies) d.dungeons.trophies = [];
+      if (d.dungeons.streak === undefined) d.dungeons.streak = 0;
+      if (!d.bounties) d.bounties = { day: '', done: [] };
+      if (d.riftPity === undefined) d.riftPity = 0;
       // Grand Overhaul migrations
       if (d.stats.ascends === undefined) d.stats.ascends = 0;
       if (d.stats.chestsOpened === undefined) d.stats.chestsOpened = 0;
@@ -576,7 +584,7 @@ const State = {
         this.data.modes.tournament.active = false;
         this.data.modes.tournament.round = 0;
       }
-      if (this.data.dungeons) this.data.dungeons.runsToday = {};
+      if (this.data.dungeons) { this.data.dungeons.runsToday = {}; this.data.dungeons.streak = 0; }
       this.save();
     }
   },
@@ -620,11 +628,22 @@ const State = {
   },
   winCampaignStage(stage) {
     const rw = DATA.stageClearRewards(stage);
+    // Realm Event of the day boosts campaign spoils
+    const evt = DATA.eventOfDay(this.dayKey());
+    if (evt.gold && rw.gold) rw.gold = Math.round(rw.gold * evt.gold);
+    if (evt.xp && rw.xp) rw.xp = Math.round(rw.xp * evt.xp);
     this.grant(rw);
     let gear = null;
     if (Math.random() < rw.gearChance) gear = this.dropGear(stage);
 
     const info = this.stageInfo(stage);
+    // Battlefield Salvage: every non-boss clear can shake loose a
+    // bonus Common–Rare drop (30%, 45% on elite stages)
+    let bonusGear = null;
+    if (!info.isBoss && Math.random() < (info.isElite ? DATA.BONUS_DROP.eliteChance : DATA.BONUS_DROP.chance)) {
+      const rar = DATA.BONUS_DROP.rarities[Math.floor(Math.random() * DATA.BONUS_DROP.rarities.length)];
+      bonusGear = this.dropGearOfRarity(rar, stage);
+    }
     if (info.isBoss) {
       this.grantChest('boss', 1);
       rw.bossChestDropped = true;
@@ -642,7 +661,7 @@ const State = {
       }
     });
     this.save();
-    return { rw, gear };
+    return { rw, gear, bonusGear };
   },
   winTowerFloor(floor) {
     const rw = DATA.towerRewards(floor);
@@ -821,37 +840,191 @@ const State = {
 
   /* ---------- dungeons (Map of Agdao) ----------
      Attempts are only consumed on VICTORY — a stuck player can
-     retry a lost raid for free. 3 wins per dungeon per day. */
+     retry a lost raid for free. 3 wins per dungeon per day, plus
+     Surge / Realm Event bonus attempts. Exhausted dungeons spawn
+     an AREA WARLORD — kill it to reset raids & raise Conquest Tier. */
+  dungeonAttemptCap(dgId) {
+    let cap = DATA.DUNGEONS.attemptsPerDay;
+    if (DATA.SURGE.dungeonsOfDay(this.dayKey()).includes(dgId)) cap += DATA.SURGE.extraAttempts;
+    const evt = DATA.eventOfDay(this.dayKey());
+    if (evt.extraRaids) cap += evt.extraRaids;
+    return cap;
+  },
   dungeonRunsLeft(dgId) {
     const runs = (this.data.dungeons && this.data.dungeons.runsToday[dgId]) || 0;
-    return Math.max(0, DATA.DUNGEONS.attemptsPerDay - runs);
+    return Math.max(0, this.dungeonAttemptCap(dgId) - runs);
   },
   regionUnlocked(regionId) {
     const r = DATA.AGDAO_REGION_BY_ID[regionId];
     return !!r && this.data.campaign.maxStage >= r.unlockStage;
   },
+  conquestTier(dgId) { return (this.data.dungeons.conquest && this.data.dungeons.conquest[dgId]) || 0; },
+  warlordAvailable(dgId) { return this.dungeonRunsLeft(dgId) === 0; },
+  isSurging(dgId) { return DATA.SURGE.dungeonsOfDay(this.dayKey()).includes(dgId); },
+
+  /* weighted relic-tier roll with pity: 8 dry rolls without an
+     Ultimate-or-better relic guarantees at least Legendary. */
+  rollRelicTier(conqTier) {
+    const table = DATA.CONQUEST.itemRoll(conqTier);
+    const totalW = table.reduce((t, e) => t + e.w, 0);
+    let r = Math.random() * totalW, tier = 'epic';
+    for (const e of table) { r -= e.w; if (r <= 0) { tier = e.tier; break; } }
+    this.data.riftPity = (this.data.riftPity || 0) + 1;
+    if (this.data.riftPity >= 8 && (tier === 'epic' || tier === 'mystic')) tier = 'legendary';
+    if (tier === 'ultimate' || tier === 'legendary' || tier === 'aether') this.data.riftPity = 0;
+    return tier;
+  },
+
   winDungeon(dgId) {
     const dg = DATA.DUNGEON_BY_ID[dgId];
     if (!dg) return null;
     const dd = this.data.dungeons;
+    const tier = this.conquestTier(dgId);
+    const surge = this.isSurging(dgId);
+    const evt = DATA.eventOfDay(this.dayKey());
     dd.runsToday[dgId] = (dd.runsToday[dgId] || 0) + 1;
     dd.clears[dgId] = (dd.clears[dgId] || 0) + 1;
+    dd.streak = (dd.streak || 0) + 1;
     const rw = DATA.DUNGEONS.reward(dg, this.data.campaign.maxStage);
+    // Conquest, Surge, Momentum-streak and Realm Event multipliers
+    const streakMult = 1 + Math.min(Math.max(dd.streak - 1, 0), 10) * 0.05;
+    const mult = DATA.CONQUEST.lootMult(tier) * (surge ? DATA.SURGE.lootMult : 1) * streakMult;
+    ['gold', 'xp', 'dust'].forEach(k => { if (rw[k]) rw[k] = Math.round(rw[k] * mult); });
+    if (evt.gold && rw.gold) rw.gold = Math.round(rw.gold * evt.gold);
+    if (evt.xp && rw.xp) rw.xp = Math.round(rw.xp * evt.xp);
+    if (evt.dust && rw.dust) rw.dust = Math.round(rw.dust * evt.dust);
     this.grant(rw);
     let gear = null, item = null;
     if (rw.gearRarities) {
       const rarity = rw.gearRarities[Math.floor(Math.random() * rw.gearRarities.length)];
-      gear = this.dropGearOfRarity(rarity, DATA.DUNGEONS.stageEq(this.data.campaign.maxStage, dg));
+      gear = this.dropGearOfRarity(rarity, DATA.DUNGEONS.stageEq(this.data.campaign.maxStage, dg) + DATA.CONQUEST.raidStageBonus(tier));
     }
-    if (rw.itemRoll) {
-      const totalW = DATA.DUNGEONS.ITEM_ROLL.reduce((t, e) => t + e.w, 0);
-      let r = Math.random() * totalW, tier = 'epic';
-      for (const e of DATA.DUNGEONS.ITEM_ROLL) { r -= e.w; if (r <= 0) { tier = e.tier; break; } }
-      const pick = this.randomItemOfTier(tier);
+    // relic roll: the Rift always rolls; conquered dungeons roll by tier
+    let itemChance = rw.itemRoll ? 1 : DATA.CONQUEST.itemChance(tier);
+    if (evt.relicLuck) itemChance = Math.min(1, itemChance * evt.relicLuck);
+    if (Math.random() < itemChance) {
+      const relicTier = this.rollRelicTier(tier);
+      const pick = this.randomItemOfTier(relicTier);
       item = this.grantNamedItem(pick.id);
     }
     this.save();
-    return { rw, gear, item, dg };
+    return { rw, gear, item, dg, tier, surge, streak: dd.streak };
+  },
+
+  breakRaidStreak() {
+    if (this.data.dungeons && this.data.dungeons.streak) {
+      this.data.dungeons.streak = 0;
+      this.save();
+    }
+  },
+
+  /* ---------- Warlord Conquest ----------
+     Beating the Area Warlord RESETS the dungeon's raids for the
+     day and permanently raises its Conquest Tier (max 5). */
+  winWarlord(dgId) {
+    const dg = DATA.DUNGEON_BY_ID[dgId];
+    if (!dg) return null;
+    const dd = this.data.dungeons;
+    const prevTier = this.conquestTier(dgId);
+    const newTier = Math.min(DATA.CONQUEST.maxTier, prevTier + 1);
+    dd.conquest[dgId] = newTier;
+    dd.runsToday[dgId] = 0;   // raids reset — the area is yours again
+    dd.streak = (dd.streak || 0) + 1;
+    const stageEq = DATA.CONQUEST.warlordStageEq(this.data.campaign.maxStage, dg, prevTier);
+    const rw = DATA.CONQUEST.warlordReward(stageEq, newTier);
+    this.grant(rw);
+    this.grantChest('warlord', 1);
+    // guaranteed relic at conquest odds
+    const relicTier = this.rollRelicTier(newTier);
+    const pick = this.randomItemOfTier(relicTier);
+    const item = this.grantNamedItem(pick.id);
+    // first-conquest trophy per dungeon per tier
+    let trophy = null;
+    const tkey = dgId + ':' + newTier;
+    if (newTier > prevTier && !dd.trophies.includes(tkey)) {
+      dd.trophies.push(tkey);
+      trophy = DATA.CONQUEST.trophy(newTier);
+      this.grant(trophy);
+    }
+    this.save();
+    return { rw, item, trophy, tier: newTier, tierUp: newTier > prevTier, dg };
+  },
+
+  /* ---------- Golden Loot Wisp bonus ---------- */
+  claimWispBonus() {
+    const rw = DATA.WISP.reward(this.data.campaign.maxStage);
+    this.grant(rw);
+    let item = null;
+    if (Math.random() < DATA.WISP.itemChance) {
+      const relicTier = Math.random() < 0.7 ? 'epic' : 'mystic';
+      const pick = this.randomItemOfTier(relicTier);
+      item = this.grantNamedItem(pick.id);
+    }
+    this.save();
+    return { rw, item };
+  },
+
+  /* ---------- Bounty Hunts (daily marks) ---------- */
+  ensureBountyDay() {
+    if (this.data.bounties.day !== this.dayKey()) {
+      this.data.bounties = { day: this.dayKey(), done: [] };
+      this.save();
+    }
+  },
+  bountyMarks() {
+    this.ensureBountyDay();
+    const cleared = Math.min(this.data.campaign.maxStage - 1, DATA.MAX_STAGE);
+    if (cleared < 1) return [];
+    let h = 0;
+    String(this.dayKey() + 'bounty').split('').forEach(c => { h = (h * 131 + c.charCodeAt(0)) >>> 0; });
+    const marks = [];
+    for (let i = 0; marks.length < Math.min(DATA.BOUNTY.perDay, cleared) && i < 40; i++) {
+      h = (h * 1103515245 + 12345) >>> 0;
+      const s = 1 + (h % cleared);
+      if (!marks.includes(s)) marks.push(s);
+    }
+    return marks.sort((a, b) => a - b);
+  },
+  bountyDone(stage) { this.ensureBountyDay(); return this.data.bounties.done.includes(stage); },
+  winBounty(stage) {
+    this.ensureBountyDay();
+    if (this.data.bounties.done.includes(stage)) return null;
+    this.data.bounties.done.push(stage);
+    const evt = DATA.eventOfDay(this.dayKey());
+    const rw = DATA.BOUNTY.reward(stage, evt.bounty);
+    this.grant(rw);
+    const rarity = DATA.BOUNTY.gearRarities[Math.floor(Math.random() * DATA.BOUNTY.gearRarities.length)];
+    const gear = this.dropGearOfRarity(rarity, stage);
+    let item = null;
+    if (Math.random() < DATA.BOUNTY.itemChance) {
+      const pick = this.randomItemOfTier(Math.random() < 0.6 ? 'epic' : 'mystic');
+      item = this.grantNamedItem(pick.id);
+    }
+    this.save();
+    return { rw, gear, item };
+  },
+
+  /* ---------- Relic Fusion — 3 same-tier relics → 1 of the next tier ----- */
+  fusableRelics(tier) {
+    return Object.values(this.data.gear)
+      .filter(g => g.itemId && g.rarity === tier && !this.gearEquippedBy(g.id))
+      .sort((a, b) => a.level - b.level);
+  },
+  fuseRelics(tier) {
+    const order = DATA.ITEM_TIER_ORDER;
+    const idx = order.indexOf(tier);
+    if (idx < 0 || idx >= order.length - 1) return null;
+    const pool = this.fusableRelics(tier);
+    if (pool.length < DATA.FUSION.need) return null;
+    const cost = { gold: DATA.FUSION.goldCost(tier) };
+    if (!this.spend(cost)) return null;
+    pool.slice(0, DATA.FUSION.need).forEach(g => { delete this.data.gear[g.id]; });
+    const nextTier = order[idx + 1];
+    const pick = this.randomItemOfTier(nextTier);
+    const g = this.grantNamedItem(pick.id);
+    this.data.stats.crafts = (this.data.stats.crafts || 0) + 1;
+    this.save();
+    return { gear: g, item: pick, tier: nextTier };
   },
 
   /* ---------- achievements ---------- */
