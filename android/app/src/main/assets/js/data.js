@@ -1909,7 +1909,21 @@ DATA.GEAR_RARITIES = [
   { id: 'legendary', name: 'Legendary', color: '#ff3355', mult: 5.2 },
   { id: 'exclusive', name: 'Exclusive', color: '#ff4d6d', mult: 5.5 },
   { id: 'aether', name: 'AETHER', color: '#7cf5ff', mult: 6.4 },
+  { id: 'ascension', name: 'ASCENSION', color: '#ffd75a', mult: 8.2 },
 ];
+/* Class groups for class-exclusive Ascension gear. Champions carry one
+   of six classes (Warrior/Assassin/Mage/Ranger/Support/Tank); exclusives
+   gate on these groups. */
+DATA.ROLE_INFO = {
+  melee:   { name: 'Melee',  glyph: '🗡️', roles: ['Warrior', 'Assassin'], label: 'Warriors & Assassins' },
+  ranged:  { name: 'Ranged', glyph: '🏹', roles: ['Ranger', 'Mage'],      label: 'Rangers & Mages' },
+  tank:    { name: 'Tank',   glyph: '🛡️', roles: ['Tank'],                label: 'Tanks' },
+  support: { name: 'Healer', glyph: '✚',  roles: ['Support'],             label: 'Healers' },
+};
+DATA.roleMatches = (champRole, groupId) => {
+  const gi = DATA.ROLE_INFO[groupId];
+  return !!gi && gi.roles.includes(champRole);
+};
 DATA.GEAR_NAMES = {
   weapon:   ['Squire\'s Blade', 'Keen Falchion', 'Stormcut Saber', 'Duskrender', 'Worldsplitter',
              'Dawnfang', 'The Umbral Kiss', 'Starpiercer', 'Kingslayer\'s Edge', 'The Last Argument',
@@ -1976,8 +1990,11 @@ DATA.ITEM_TIER_INFO = {
   ultimate:  { id: 'ultimate',  name: 'Ultimate',  color: '#ff9100' },
   legendary: { id: 'legendary', name: 'Legendary', color: '#ff3355' },
   aether:    { id: 'aether',    name: 'AETHER',    color: '#7cf5ff' },
+  ascension: { id: 'ascension', name: 'ASCENSION', color: '#ffd75a' },
 };
-/* Ascending power order for fusion & sorting */
+/* Ascending power order for fusion & sorting.
+   ASCENSION is deliberately NOT here — it cannot be fused into;
+   it only drops from deep Expedition floors (Map of Agdao). */
 DATA.ITEM_TIER_ORDER = ['epic', 'mystic', 'ultimate', 'legendary', 'aether'];
 DATA.ITEMS = [
   /* ---------- EPIC (30) — solid procs & auras ---------- */
@@ -2163,6 +2180,58 @@ DATA.ITEMS = [
   { id: 'ae_t5', slot: 'talisman', tier: 'aether', name: 'Singularity Prism', fx: { kind: 'starfall', power: 0.9, every: 5 }, fxDesc: 'AETHER · Every 5s, a star falls on a random enemy for 90% ATK.', lore: 'All light bends toward it. Some of it never leaves.' },
   { id: 'ae_t6', slot: 'talisman', tier: 'aether', name: 'Echo of the First Words', fx: { kind: 'echoStrike', power: 0.35 }, fxDesc: 'AETHER · Basic attacks ECHO, striking the target again for 35% ATK.', lore: 'The realm\'s first sentence, still bouncing off the mountains.' },
   { id: 'ae_t7', slot: 'talisman', tier: 'aether', name: 'Vampire Star Fragment', fx: { kind: 'vampiricOnHit', power: 0.25, dur: 4, chance: 35 }, fxDesc: 'AETHER · 35% chance on basics to inflict Vampiric Curse (25% ATK/s drained to heal your weakest ally, 4s).', lore: 'A star that feeds on other stars. It is on your side now. Probably.' },
+
+  /* ============================================================
+     ASCENSION (40) — the gear of the level-100 champions.
+     Only drops in the DEPTHS OF AGDAO (Expeditions). Every piece
+     demands a Level 100 champion; sixteen are CLASS-EXCLUSIVE
+     (Healer ✚ / Tank 🛡️ / Melee 🗡️ / Ranged 🏹). Stats still ride
+     the shared curve (mult 8.2) — the effects are the legend.
+     ============================================================ */
+  /* ---- WEAPONS (10) ---- */
+  { id: 'as_w1', slot: 'weapon', tier: 'ascension', levelReq: 100, name: 'Zenith, the Hundredth Dawn', fx: { kind: 'echoStrike', power: 1.0 }, fxDesc: 'ASCENSION · Basic attacks ECHO, striking the target AGAIN for 100% ATK.', lore: 'Raised at the hundredth sunrise by the first champion to see it. It has never set.' },
+  { id: 'as_w2', slot: 'weapon', tier: 'ascension', levelReq: 100, name: 'Worldsbane Ultima', fx: { kind: 'executeBonus', power: 60 }, fxDesc: 'ASCENSION · +60% damage to enemies below 50% HP.', lore: 'The realm keeps a list of things that must end. This is the pen and the period.' },
+  { id: 'as_w3', slot: 'weapon', tier: 'ascension', levelReq: 100, name: 'Starforge Apotheosis', fx: { kind: 'starfall', power: 2.2, every: 4 }, fxDesc: 'ASCENSION · Every 4s, a star falls on a random enemy for 220% ATK.', lore: 'Not forged under the stars. Forged FROM them.' },
+  { id: 'as_w4', slot: 'weapon', tier: 'ascension', levelReq: 100, name: 'The Infinite Argument', fx: { kind: 'timeWarp', power: 80 }, fxDesc: 'ASCENSION · Skill cooldowns recover 80% faster.', lore: 'It has never lost a debate. Its rebuttals arrive before the objection.' },
+  { id: 'as_w5', slot: 'weapon', tier: 'ascension', levelReq: 100, name: 'Doomwhisper, Voice of the Deep', fx: { kind: 'defShredOnHit', power: 40, dur: 5, chance: 75 }, fxDesc: 'ASCENSION · 75% chance on basics to SHRED enemy DEF by 40% for 5s.', lore: 'It speaks once per swing. Armor listens, then leaves.' },
+  { id: 'as_w6', slot: 'weapon', tier: 'ascension', levelReq: 100, name: 'Aetherstorm Cataclysm', fx: { kind: 'aoeBasic', power: 0.65, n: 3 }, fxDesc: 'ASCENSION · Every 3rd basic attack unleashes a storm hitting ALL enemies for 65% ATK.', lore: 'The storm that ate Great Aespo\'s tallest peak, folded into a handle.' },
+  { id: 'as_wm', slot: 'weapon', tier: 'ascension', levelReq: 100, classReq: 'melee', name: '⟐ Worldbreaker Edgelord', fx: { kind: 'culling', power: 15 }, fxDesc: 'MELEE EXCLUSIVE · CULLING: basic attacks EXECUTE enemies below 15% HP outright.', lore: 'For the blade-sworn only. It does not finish fights — it deletes their endings.' },
+  { id: 'as_wr', slot: 'weapon', tier: 'ascension', levelReq: 100, classReq: 'ranged', name: '⟐ Horizon\'s End Longbow', fx: { kind: 'echoStrike', power: 1.4 }, fxDesc: 'RANGED EXCLUSIVE · Basic attacks ECHO for 140% ATK — the second arrow arrives first.', lore: 'Strung with the line where sky meets sea. Range is a rumor it started.' },
+  { id: 'as_wt', slot: 'weapon', tier: 'ascension', levelReq: 100, classReq: 'tank', name: '⟐ Bastionbreaker Maul', fx: { kind: 'stunOnHit', dur: 1.6, chance: 30 }, fxDesc: 'TANK EXCLUSIVE · 30% chance on basics to STUN the target for 1.6s.', lore: 'Walls respect it. Skulls obey it.' },
+  { id: 'as_wh', slot: 'weapon', tier: 'ascension', levelReq: 100, classReq: 'support', name: '⟐ Lifebloom Scepter of Dawn', fx: { kind: 'healAmp', power: 50 }, fxDesc: 'HEALER EXCLUSIVE · ALL your healing is 50% stronger.', lore: 'It flowered once in the Creator\'s hand. It has been spring around it ever since.' },
+  /* ---- ARMOR (10) ---- */
+  { id: 'as_a1', slot: 'armor', tier: 'ascension', levelReq: 100, name: 'Aegis of the Ascended', fx: { kind: 'guardianAngel', revivePct: 50 }, fxDesc: 'ASCENSION · GUARDIAN ANGEL: the first fatal blow leaves you alive at 50% HP.', lore: 'Worn by the first champion to reach the hundredth level. Death filed a complaint.' },
+  { id: 'as_a2', slot: 'armor', tier: 'ascension', levelReq: 100, name: 'Colossus Eternal Warplate', fx: { kind: 'vitality', power: 40 }, fxDesc: 'ASCENSION · +40% Max HP at battle start.', lore: 'The Colossus was melted down and reforged willingly. It wanted a better view.' },
+  { id: 'as_a3', slot: 'armor', tier: 'ascension', levelReq: 100, name: 'Phasewrought Infinity Shell', fx: { kind: 'phaseShift', charges: 6 }, fxDesc: 'ASCENSION · PHASE through the first 6 attacks against you — they miss entirely.', lore: 'It exists in six places at once. You are wearing all of them.' },
+  { id: 'as_a4', slot: 'armor', tier: 'ascension', levelReq: 100, name: 'Mirrorstorm Carapace', fx: { kind: 'thorns', power: 35 }, fxDesc: 'ASCENSION · Reflects 35% of damage taken back to attackers.', lore: 'Strike it and meet yourself, mid-swing, less friendly.' },
+  { id: 'as_a5', slot: 'armor', tier: 'ascension', levelReq: 100, name: 'Deathless Sovereign Mail', fx: { kind: 'lastStand', power: 800 }, fxDesc: 'ASCENSION · First time below 30% HP: gain a shield equal to 800% ATK (8s).', lore: 'Its last three owners are still alive. That is the entire sales pitch.' },
+  { id: 'as_a6', slot: 'armor', tier: 'ascension', levelReq: 100, name: 'Robes of the Silent Hour', fx: { kind: 'dodge', power: 25 }, fxDesc: 'ASCENSION · 25% chance to dodge any attack.', lore: 'Woven from the hour the Rift held its breath. Blades pass through the pause.' },
+  { id: 'as_am', slot: 'armor', tier: 'ascension', levelReq: 100, classReq: 'melee', name: '⟐ Bloodforged Berserker Plate', fx: { kind: 'berserkRage', power: 80 }, fxDesc: 'MELEE EXCLUSIVE · First time below 50% HP: +80% ATK for the rest of battle.', lore: 'It drinks the wearer\'s fury and pours back a flood.' },
+  { id: 'as_ar', slot: 'armor', tier: 'ascension', levelReq: 100, classReq: 'ranged', name: '⟐ Windshadow Sniper Shroud', fx: { kind: 'critUp', power: 25 }, fxDesc: 'RANGED EXCLUSIVE · +25% Critical chance for the whole battle.', lore: 'The wind cannot find you. Your arrows tell it where to look.' },
+  { id: 'as_at', slot: 'armor', tier: 'ascension', levelReq: 100, classReq: 'tank', name: '⟐ Bulwark of the Last Wall', fx: { kind: 'guardAura', power: 20 }, fxDesc: 'TANK EXCLUSIVE · GUARD AURA: while you stand, ALL other allies take 20% less damage.', lore: 'When the last wall of Astorvia fell, this is what the defenders found still standing.' },
+  { id: 'as_ah', slot: 'armor', tier: 'ascension', levelReq: 100, classReq: 'support', name: '⟐ Vestments of the Dawnmother', fx: { kind: 'wardAura', power: 3.0 }, fxDesc: 'HEALER EXCLUSIVE · Battle start: ALL allies gain a shield equal to 300% of your ATK (10s).', lore: 'The Dawnmother swaddled the first morning in this cloth. It still keeps things safe.' },
+  /* ---- BOOTS (10) ---- */
+  { id: 'as_b1', slot: 'boots', tier: 'ascension', levelReq: 100, name: 'Striders of the Hundredfold Path', fx: { kind: 'haste', power: 35 }, fxDesc: 'ASCENSION · +35% Speed for the whole battle.', lore: 'They walked all hundred roads to mastery, then asked for a hundred more.' },
+  { id: 'as_b2', slot: 'boots', tier: 'ascension', levelReq: 100, name: 'Chronoflux Voidrunners', fx: { kind: 'chronoShift', power: 6, every: 3, max: 72 }, fxDesc: 'ASCENSION · CHRONOSHIFT: gain +6% Speed every 3s, up to +72%.', lore: 'Each step arrives before the last one leaves. Physics has stopped asking.' },
+  { id: 'as_b3', slot: 'boots', tier: 'ascension', levelReq: 100, name: 'Gravemarch Dominators', fx: { kind: 'frenzyKill', power: 18, max: 6 }, fxDesc: 'ASCENSION · Each enemy kill grants +18% Speed (stacks up to 6).', lore: 'Momentum incarnate. The battlefield is just a runway.' },
+  { id: 'as_b4', slot: 'boots', tier: 'ascension', levelReq: 100, name: 'Dawnsprint Eternals', fx: { kind: 'firstStrike', power: 60, dur: 10 }, fxDesc: 'ASCENSION · +60% ATK for the first 10 seconds of battle.', lore: 'The first ten seconds of every war belong to whoever wears these.' },
+  { id: 'as_b5', slot: 'boots', tier: 'ascension', levelReq: 100, name: 'Comet-Heart Chargers', fx: { kind: 'energyOnBasic', power: 45 }, fxDesc: 'ASCENSION · +45 bonus Energy on every basic attack.', lore: 'A comet\'s heart beats in each heel. They are always mid-arrival.' },
+  { id: 'as_b6', slot: 'boots', tier: 'ascension', levelReq: 100, name: 'Riftwalker Paradox Treads', fx: { kind: 'phaseShift', charges: 4 }, fxDesc: 'ASCENSION · PHASE through the first 4 attacks against you — they miss entirely.', lore: 'Half a step into the Rift at all times. The Rift finds it flattering.' },
+  { id: 'as_bm', slot: 'boots', tier: 'ascension', levelReq: 100, classReq: 'melee', name: '⟐ Warpath Annihilators', fx: { kind: 'lifesteal', power: 30 }, fxDesc: 'MELEE EXCLUSIVE · Heal for 30% of ALL damage you deal.', lore: 'They march on spilled strength and never tire.' },
+  { id: 'as_br', slot: 'boots', tier: 'ascension', levelReq: 100, classReq: 'ranged', name: '⟐ Skyhunter Zephyr Boots', fx: { kind: 'hasteAura', power: 15 }, fxDesc: 'RANGED EXCLUSIVE · SQUALL AURA: ALL allies gain +15% Speed for the whole battle.', lore: 'The wind follows the hunter home and stays for the war.' },
+  { id: 'as_bt', slot: 'boots', tier: 'ascension', levelReq: 100, classReq: 'tank', name: '⟐ Unmovable Mountain Greaves', fx: { kind: 'bulwarkAura', power: 18 }, fxDesc: 'TANK EXCLUSIVE · MOUNTAIN AURA: ALL allies gain +18% DEF for the whole battle.', lore: 'The mountain was asked to move. These are its written refusal.' },
+  { id: 'as_bh', slot: 'boots', tier: 'ascension', levelReq: 100, classReq: 'support', name: '⟐ Pilgrim Steps of Renewal', fx: { kind: 'regen', power: 5 }, fxDesc: 'HEALER EXCLUSIVE · Regenerate 5% of max HP every 3 seconds.', lore: 'Every step plants a small spring. The road behind you blooms.' },
+  /* ---- TALISMANS (10) ---- */
+  { id: 'as_t1', slot: 'talisman', tier: 'ascension', levelReq: 100, name: 'Crown of the Ascended King', fx: { kind: 'mightAura', power: 15 }, fxDesc: 'ASCENSION · SOVEREIGN AURA: ALL allies gain +15% ATK for the whole battle.', lore: 'Whoever wears it is king. The crown decided; the realms adjusted.' },
+  { id: 'as_t2', slot: 'talisman', tier: 'ascension', levelReq: 100, name: 'The Creator\'s Final Word', fx: { kind: 'overcharge' }, fxDesc: 'ASCENSION · OVERCHARGE: begin battle with your ULTIMATE fully charged.', lore: 'Aljay wrote it, read it twice, and locked it in the deepest floor of the deepest depth.' },
+  { id: 'as_t3', slot: 'talisman', tier: 'ascension', levelReq: 100, name: 'Heart of a Dead God', fx: { kind: 'soulHarvest', hpPct: 30, energy: 500 }, fxDesc: 'ASCENSION · On kill: restore 30% max HP and gain 500 Energy.', lore: 'It still beats. It has simply changed employers.' },
+  { id: 'as_t4', slot: 'talisman', tier: 'ascension', levelReq: 100, name: 'Oblivion\'s Measuring Eye', fx: { kind: 'critDmg', power: 90 }, fxDesc: 'ASCENSION · Critical hits deal +90% more damage.', lore: 'It measures exactly how much ending each thing needs, then provides it.' },
+  { id: 'as_t5', slot: 'talisman', tier: 'ascension', levelReq: 100, name: 'Sigil of the Hundred Souls', fx: { kind: 'avenger', power: 45 }, fxDesc: 'ASCENSION · When an ally falls: +45% ATK for the rest of battle (stacks).', lore: 'One hundred champions signed it. Harm their heir and meet all of them.' },
+  { id: 'as_t6', slot: 'talisman', tier: 'ascension', levelReq: 100, name: 'Pulse of the First Rift', fx: { kind: 'energyStart', power: 750 }, fxDesc: 'ASCENSION · Begin battle with +750 Energy.', lore: 'The Rift\'s first heartbeat, bottled. It is very eager to be spent.' },
+  { id: 'as_tm', slot: 'talisman', tier: 'ascension', levelReq: 100, classReq: 'melee', name: '⟐ Duelist\'s Deathmark Pendant', fx: { kind: 'executeBonus', power: 75 }, fxDesc: 'MELEE EXCLUSIVE · +75% damage to enemies below 50% HP.', lore: 'It marks the exact heartbeat a duel ends. Wearers just arrive early.' },
+  { id: 'as_tr', slot: 'talisman', tier: 'ascension', levelReq: 100, classReq: 'ranged', name: '⟐ Eye of the Stormhawk', fx: { kind: 'critAura', power: 12 }, fxDesc: 'RANGED EXCLUSIVE · HAWKEYE AURA: ALL allies gain +12% Critical chance.', lore: 'The Stormhawk sees every opening in the realm. Now your whole warband does.' },
+  { id: 'as_tt', slot: 'talisman', tier: 'ascension', levelReq: 100, classReq: 'tank', name: '⟐ Heartstone of the Bulwark', fx: { kind: 'stasis' }, fxDesc: 'TANK EXCLUSIVE · STASIS: immune to Stun and Silence — the wall does not blink.', lore: 'Cut from the core of the Unmovable Mountain. Opinions bounce off it. So does everything else.' },
+  { id: 'as_th', slot: 'talisman', tier: 'ascension', levelReq: 100, classReq: 'support', name: '⟐ Teardrop of Eternal Mercy', fx: { kind: 'healAmp', power: 35 }, fxDesc: 'HEALER EXCLUSIVE · ALL your healing is 35% stronger.', lore: 'The Dawnmother wept once for every fallen champion. This is the tear that refused to dry.' },
 ];
 DATA.ITEM_BY_ID = {};
 DATA.ITEMS.forEach(it => { DATA.ITEM_BY_ID[it.id] = it; });
@@ -2422,6 +2491,64 @@ DATA.CONQUEST = {
   },
   // one-time trophy the first time each dungeon reaches each tier
   trophy: tier => ({ diamonds: Math.round((120 + tier * 80) * 1.75), scrolls: tier >= 3 ? 2 : 1, dust: 60 + tier * 40 }),
+};
+
+/* ============================================================
+   DEPTHS OF AGDAO — Expeditions: the dungeon-crawler layer.
+   Every region hides an endless DELVE beneath its dungeons.
+   Each floor is a winding path of CHECKPOINTS — skirmishes,
+   elites, treasure, mysteries — with forks where the raider
+   chooses the way, capped by a FLOOR BOSS. Deeper floors hit
+   harder and are the ONLY source of ASCENSION gear (Lv 100).
+   ============================================================ */
+DATA.EXPEDITION = {
+  steps: 7,                        // checkpoints per floor — the last is the FLOOR BOSS
+  // enemy scaling: starts under your wall, then climbs +3 stages per floor —
+  // an endless difficulty ramp on the shared curve, like the Tower/Abyss
+  stageEq(maxStage, floor) {
+    return Math.max(2, Math.round(Math.min(maxStage, DATA.MAX_STAGE) * 0.75) + (floor - 1) * 3);
+  },
+  NODE_INFO: {
+    battle:   { glyph: '⚔️', name: 'Skirmish',       desc: 'A war-party holds this checkpoint. Cut through.' },
+    elite:    { glyph: '💀', name: 'Elite Pack',      desc: 'Veterans of the deep — harder fight, richer spoils, relic chance.' },
+    treasure: { glyph: '💰', name: 'Treasure Trove',  desc: 'An unguarded hoard. Loot it and move on.' },
+    cache:    { glyph: '🎁', name: 'Radiant Cache',   desc: 'A sealed strongbox humming with power. Gear inside — sometimes far more.' },
+    mystery:  { glyph: '❓', name: 'The Unknown',     desc: 'Something stirs in the dark… fortune, or ambush.' },
+    boss:     { glyph: '👑', name: 'FLOOR BOSS',      desc: 'The master of this floor. Slay it to delve deeper.' },
+  },
+  // node type weights for layout generation (boss excluded — always last)
+  TYPE_WEIGHTS: [
+    { type: 'battle',   w: 38 },
+    { type: 'treasure', w: 18 },
+    { type: 'mystery',  w: 16 },
+    { type: 'elite',    w: 18 },
+    { type: 'cache',    w: 10 },
+  ],
+  forkChance: 0.55,               // chance a step splits into a chosen-path fork
+  /* ASCENSION drop odds — the whole reason to go deep */
+  bossAscensionChance(floor, rift) { return Math.min(0.40, (0.05 + (floor - 1) * 0.025) * (rift ? 1.5 : 1)); },
+  cacheAscensionChance(floor) { return floor >= 4 ? Math.min(0.15, 0.02 + (floor - 4) * 0.012) : 0; },
+  eliteRelicChance: 0.20,          // named relic (non-Ascension) on elite kills
+  /* rewards ride the shared curve via stage-equivalent */
+  nodeReward(stageEq, type, floor) {
+    const base = DATA.stageClearRewards(stageEq);
+    switch (type) {
+      case 'battle':   return { gold: Math.round(base.gold * 0.6), xp: Math.round(base.xp * 0.6), dust: Math.round(8 + stageEq * 0.5) };
+      case 'elite':    return { gold: Math.round(base.gold * 1.1), xp: Math.round(base.xp * 1.1), dust: Math.round(16 + stageEq * 0.9), diamonds: Math.round(25 * 1.75) };
+      case 'treasure': return { gold: Math.round(base.gold * 1.6), xp: Math.round(base.xp * 0.5), dust: Math.round(20 + stageEq * 1.1) };
+      case 'cache':    return { dust: Math.round(30 + stageEq * 0.8), gold: Math.round(base.gold * 0.5) };
+      case 'boss':     return { gold: Math.round(base.gold * 2.4), xp: Math.round(base.xp * 2.4), dust: Math.round(35 + stageEq * 1.4), diamonds: Math.round((90 + floor * 15) * 1.75) };
+      default:         return { gold: Math.round(base.gold * 0.5) };
+    }
+  },
+  /* mystery outcomes — one is rolled when the node is entered */
+  MYSTERY_OUTCOMES: [
+    { id: 'gold',     w: 26, glyph: '💰', text: 'A collapsed vault spills its savings at your feet!' },
+    { id: 'dust',     w: 24, glyph: '✨', text: 'A vein of raw gear dust glitters in the wall!' },
+    { id: 'diamonds', w: 16, glyph: '💎', text: 'A pouch of diamonds, dropped by a less lucky raider!' },
+    { id: 'scroll',   w: 10, glyph: '📜', text: 'A summoning scroll, still sealed, still potent!' },
+    { id: 'ambush',   w: 24, glyph: '💀', text: 'AMBUSH! An elite pack erupts from the shadows!' },
+  ],
 };
 
 /* ---------------- Rift Surge — daily rotating raid events ----------------
@@ -2727,10 +2854,10 @@ DATA.STORE = {
   diamondPacks: [
     { id: 'dp1', name: 'Handful of Diamonds',  diamonds: 1000,  bonus: 0,     price: 0.99,  glyph: '💎' },
     { id: 'dp2', name: 'Pouch of Diamonds',    diamonds: 5200,  bonus: 400,   price: 4.99,  glyph: '👝' },
-    { id: 'dp3', name: 'Chest of Diamonds',    diamonds: 10800, bonus: 1200,  price: 9.99,  glyph: '🧰' },
+    { id: 'dp3', name: 'Chest of Diamonds',    diamonds: 10800, bonus: 1200,  price: 9.99,  glyph: '🧰', tag: 'MOST POPULAR' },
     { id: 'dp4', name: 'Crate of Diamonds',    diamonds: 23000, bonus: 3000,  price: 19.99, glyph: '📦' },
     { id: 'dp5', name: 'Vault of Diamonds',    diamonds: 60000, bonus: 10000, price: 49.99, glyph: '🏦' },
-    { id: 'dp6', name: 'Dragon\'s Hoard',      diamonds: 130000, bonus: 30000, price: 99.99, glyph: '🐲' },
+    { id: 'dp6', name: 'Dragon\'s Hoard',      diamonds: 130000, bonus: 30000, price: 99.99, glyph: '🐲', tag: 'BEST VALUE' },
   ],
   championPacks: [
     { id: 'buy_ivcan', champ: 'ivcan', name: 'Ivcan — The Voidforged', price: 9.99,
@@ -2750,14 +2877,76 @@ DATA.STORE = {
     { id: 'founder', name: 'Beta Founder\'s Pack', price: 4.99, glyph: '🏅',
       includes: '4,000 Diamonds + 5 Summon Scrolls + permanent FOUNDER badge', diamonds: 4000, scrolls: 5, badge: 'FOUNDER' },
   ],
-  // diamond-priced in-game items
+  // diamond-priced in-game items — the Market. Bulk sizes always SAVE.
   diamondShop: [
-    { id: 'ds_scroll', name: 'Summon Scroll', costD: 280, gives: { scrolls: 1 }, glyph: '📜' },
-    { id: 'ds_scroll10', name: '10× Summon Scrolls', costD: 2520, gives: { scrolls: 10 }, glyph: '🗞️', tag: 'SAVE 10%' },
-    { id: 'ds_gold', name: 'Gold Cache', costD: 150, gives: { goldByStage: 60 }, glyph: '💰' }, // 60 min of idle gold
-    { id: 'ds_xp', name: 'XP Cache', costD: 150, gives: { xpByStage: 60 }, glyph: '📗' },
-    { id: 'ds_dust', name: 'Gear Dust Cache', costD: 200, gives: { dust: 120 }, glyph: '✨' },
+    { id: 'ds_scroll',   name: 'Summon Scroll',          costD: 280,  gives: { scrolls: 1 },   glyph: '📜' },
+    { id: 'ds_scroll5',  name: '5× Summon Scrolls',      costD: 1330, gives: { scrolls: 5 },   glyph: '📜', tag: 'SAVE 5%' },
+    { id: 'ds_scroll10', name: '10× Summon Scrolls',     costD: 2520, gives: { scrolls: 10 },  glyph: '🗞️', tag: 'SAVE 10%' },
+    { id: 'ds_scroll25', name: '25× Summon Scrolls',     costD: 5600, gives: { scrolls: 25 },  glyph: '📦', tag: 'SAVE 20%' },
+    { id: 'ds_gold',     name: 'Gold Cache (1h)',        costD: 150,  gives: { goldByStage: 60 },  glyph: '💰' }, // 60 min of idle gold
+    { id: 'ds_gold3',    name: 'Gold Hoard (3h)',        costD: 400,  gives: { goldByStage: 180 }, glyph: '🪙', tag: 'SAVE 11%' },
+    { id: 'ds_gold10',   name: 'Gold Vault (10h)',       costD: 1200, gives: { goldByStage: 600 }, glyph: '🏦', tag: 'SAVE 20%' },
+    { id: 'ds_xp',       name: 'XP Cache (1h)',          costD: 150,  gives: { xpByStage: 60 },    glyph: '📗' },
+    { id: 'ds_xp3',      name: 'XP Tome Stack (3h)',     costD: 400,  gives: { xpByStage: 180 },   glyph: '📚', tag: 'SAVE 11%' },
+    { id: 'ds_xp10',     name: 'XP Archive (10h)',       costD: 1200, gives: { xpByStage: 600 },   glyph: '🏛️', tag: 'SAVE 20%' },
+    { id: 'ds_dust',     name: 'Gear Dust Cache',        costD: 200,  gives: { dust: 120 },  glyph: '✨' },
+    { id: 'ds_dust3',    name: 'Gear Dust Barrel',       costD: 500,  gives: { dust: 330 },  glyph: '🛢️', tag: 'SAVE 10%' },
+    { id: 'ds_dust10',   name: 'Gear Dust Silo',         costD: 1400, gives: { dust: 1050 }, glyph: '⚗️', tag: 'SAVE 25%' },
   ],
+
+  /* ---- PROMO BUNDLES — multi-resource value packs, priced in 💎.
+     value = what the contents cost bought separately in the Market;
+     save = the discount %. onceEver bundles are once per account. ---- */
+  promos: [
+    { id: 'pb_raider', name: "Raider's Kickstart", glyph: '🎒', costD: 500, onceEver: true,
+      gives: { scrolls: 2, goldByStage: 120, dust: 200 }, value: 1360, save: 63,
+      blurb: '2× Summon Scrolls · 2h of Gold · 200 Gear Dust' },
+    { id: 'pb_forge', name: "Smith's Warchest", glyph: '⚒️', costD: 980,
+      gives: { dust: 550, goldByStage: 120 }, value: 1400, save: 30,
+      blurb: '550 Gear Dust · 2h of Gold — everything an enhancer needs' },
+    { id: 'pb_summoner', name: "Summoner's Rite", glyph: '🔮', costD: 1980,
+      gives: { scrolls: 7, dust: 150, diamonds: 200 }, value: 2860, save: 31,
+      blurb: '7× Summon Scrolls · 150 Dust · +200 💎 BONUS BACK' },
+    { id: 'pb_war', name: 'War Council Bundle', glyph: '⚜️', costD: 3300,
+      gives: { scrolls: 10, goldByStage: 360, xpByStage: 360, dust: 300 }, value: 5100, save: 35,
+      blurb: '10× Scrolls · 6h Gold · 6h XP · 300 Dust' },
+    { id: 'pb_ascend', name: 'Ascendancy Trove', glyph: '🌟', costD: 5900,
+      gives: { scrolls: 12, goldByStage: 600, xpByStage: 600, dust: 800, diamonds: 500 }, value: 9430, save: 37,
+      blurb: '12× Scrolls · 10h Gold · 10h XP · 800 Dust · +500 💎 BONUS BACK' },
+    { id: 'pb_dragon', name: "Warlord's Ransom", glyph: '🐲', costD: 9800, onceEver: true,
+      gives: { scrolls: 25, goldByStage: 1200, xpByStage: 1200, dust: 1500, diamonds: 1500, chest: 'celestial' }, value: 19725, save: 50,
+      blurb: '25× Scrolls · 20h Gold · 20h XP · 1500 Dust · +1500 💎 BACK · Celestial Chest' },
+  ],
+
+  /* ---- DAILY DEALS — 3 rotate in each day, one purchase each.
+     Flash-sale pricing: 35–50% off Market value. ---- */
+  DEALS_POOL: [
+    { id: 'dd_scrolls', name: 'Scroll Flash Sale', glyph: '📜', costD: 500,  gives: { scrolls: 3 },      value: 840,  save: 40 },
+    { id: 'dd_dust',    name: 'Dust Rush',         glyph: '✨', costD: 360,  gives: { dust: 360 },       value: 600,  save: 40 },
+    { id: 'dd_gold',    name: 'Gold Fever',        glyph: '💰', costD: 260,  gives: { goldByStage: 160 },value: 400,  save: 35 },
+    { id: 'dd_xp',      name: 'Scholar Surge',     glyph: '📗', costD: 260,  gives: { xpByStage: 160 },  value: 400,  save: 35 },
+    { id: 'dd_golden',  name: 'Golden Chest Deal', glyph: '🏆', costD: 340,  gives: { chest: 'golden' }, value: 560,  save: 39 },
+    { id: 'dd_mystic',  name: 'Mystic Chest Deal', glyph: '🔮', costD: 660,  gives: { chest: 'mystic' }, value: 1200, save: 45 },
+    { id: 'dd_bigdust', name: 'Dust Avalanche',    glyph: '⛏️', costD: 900,  gives: { dust: 900 },       value: 1500, save: 40 },
+    { id: 'dd_warkit',  name: 'War Kit',           glyph: '🛡️', costD: 800,  gives: { scrolls: 2, dust: 200, goldByStage: 60 }, value: 1443, save: 45 },
+    { id: 'dd_jackpot', name: 'Diamond Jackpot',   glyph: '💎', costD: 1000, gives: { diamonds: 1300 },  value: 1300, save: 23 },
+  ],
+  dealsPerDay: 3,
+  dealsOfDay(dayKey) {
+    let h = 0;
+    String(dayKey + 'deals').split('').forEach(c => { h = (h * 131 + c.charCodeAt(0)) >>> 0; });
+    const pool = this.DEALS_POOL.slice();
+    const out = [];
+    while (out.length < this.dealsPerDay && pool.length) {
+      h = (h * 1103515245 + 12345) >>> 0;
+      out.push(pool.splice(h % pool.length, 1)[0]);
+    }
+    return out;
+  },
+
+  /* ---- FREE DAILY GIFT — the Store always pays you to visit ---- */
+  freeGift: { id: 'free_gift', name: "Merchant's Favor", glyph: '🎗️', gives: { diamonds: 60, dust: 30, goldByStage: 30 },
+    blurb: 'A free thank-you from the Grand Bazaar — every day.' },
 };
 
 /* ============================================================

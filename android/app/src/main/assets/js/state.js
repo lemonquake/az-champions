@@ -164,6 +164,8 @@ const State = {
       },
       chests: {},                       // chestId -> count owned (earned/purchased, opened from Store)
       dungeons: { runsToday: {}, clears: {}, conquest: {}, trophies: [], streak: 0 },   // Map of Agdao raids + Warlord Conquest
+      expeditions: {},                  // regionId -> { floor, step, layout, chosen } — Depths of Agdao
+      storeState: { day: '', dealsBought: [], giftClaimed: false, promosBought: [] },   // daily deals / promos / free gift
       bounties: { day: '', done: [] },  // daily Bounty Hunts
       idle: { lastCollect: now },
       pity: 0,
@@ -230,6 +232,9 @@ const State = {
       if (d.dungeons.streak === undefined) d.dungeons.streak = 0;
       if (!d.bounties) d.bounties = { day: '', done: [] };
       if (d.riftPity === undefined) d.riftPity = 0;
+      // Depths of Agdao (Expeditions) + Store overhaul migrations
+      if (!d.expeditions) d.expeditions = {};
+      if (!d.storeState) d.storeState = { day: '', dealsBought: [], giftClaimed: false, promosBought: [] };
       // Grand Overhaul migrations
       if (d.stats.ascends === undefined) d.stats.ascends = 0;
       if (d.stats.chestsOpened === undefined) d.stats.chestsOpened = 0;
@@ -454,9 +459,28 @@ const State = {
     });
     return out;
   },
+  /* ASCENSION gear demands a Lv 100 champion — class exclusives also
+     demand the matching role. Returns { ok, reason } for the UI. */
+  canEquipGear(champId, gearId) {
+    const g = this.data.gear[gearId];
+    const rc = this.data.roster[champId];
+    if (!g || !rc) return { ok: false, reason: 'Unknown gear' };
+    const def = g.itemId && DATA.ITEM_BY_ID[g.itemId];
+    if (def) {
+      if (def.levelReq && rc.level < def.levelReq) {
+        return { ok: false, reason: `Requires a Level ${def.levelReq} champion (currently ${rc.level})` };
+      }
+      if (def.classReq && !DATA.roleMatches(DATA.CHAMP_BY_ID[champId].role, def.classReq)) {
+        const ri = DATA.ROLE_INFO[def.classReq];
+        return { ok: false, reason: `${ri.glyph} ${ri.name}-exclusive — only ${ri.label} can wield this` };
+      }
+    }
+    return { ok: true };
+  },
   equipGear(champId, gearId) {
     const g = this.data.gear[gearId];
     if (!g) return false;
+    if (!this.canEquipGear(champId, gearId).ok) return false;
     // unequip from anyone else
     Object.keys(this.data.roster).forEach(cid => {
       const rc = this.data.roster[cid];
@@ -962,6 +986,159 @@ const State = {
     }
     this.save();
     return { rw, item };
+  },
+
+  /* ---------- Depths of Agdao — Expeditions (dungeon crawler) ----------
+     Endless floors beneath each region. Each floor is a winding path of
+     checkpoints with forks; the layout is generated once and saved, so
+     the map never shifts under the raider's feet. Battles are FREE to
+     retry; only victory moves the marker. */
+  expeditionState(regionId) {
+    if (!this.data.expeditions) this.data.expeditions = {};
+    let ex = this.data.expeditions[regionId];
+    if (!ex) {
+      ex = { floor: 1, step: 0, layout: this.genExpeditionFloor(1), chosen: [] };
+      this.data.expeditions[regionId] = ex;
+      this.save();
+    }
+    return ex;
+  },
+  genExpeditionFloor(floor) {
+    const E = DATA.EXPEDITION;
+    const pick = () => {
+      const tot = E.TYPE_WEIGHTS.reduce((t, e) => t + e.w, 0);
+      let r = Math.random() * tot;
+      for (const e of E.TYPE_WEIGHTS) { r -= e.w; if (r <= 0) return e.type; }
+      return 'battle';
+    };
+    const steps = [];
+    for (let i = 0; i < E.steps - 1; i++) {
+      if (Math.random() < E.forkChance) {
+        const a = pick();
+        let b = pick(), guard = 0;
+        while (b === a && guard++ < 6) b = pick();
+        steps.push([{ type: a, jx: Math.round((Math.random() - 0.5) * 20) }, { type: b, jx: Math.round((Math.random() - 0.5) * 20) }]);
+      } else {
+        steps.push([{ type: pick(), jx: Math.round((Math.random() - 0.5) * 70) }]);
+      }
+    }
+    // every floor guarantees at least one fight before the boss
+    if (!steps.some(s => s.some(n => n.type === 'battle' || n.type === 'elite'))) {
+      steps[1] = [{ type: 'battle', jx: 0 }];
+    }
+    steps.push([{ type: 'boss', jx: 0 }]);
+    return steps;
+  },
+  expeditionNode(regionId, choiceIdx) {
+    const ex = this.expeditionState(regionId);
+    const step = ex.layout[ex.step];
+    if (!step) return null;
+    return step[Math.min(choiceIdx || 0, step.length - 1)];
+  },
+  /* advance past the current step; returns 'floor' when the boss fell */
+  expeditionAdvance(regionId, choiceIdx) {
+    const ex = this.expeditionState(regionId);
+    ex.chosen[ex.step] = choiceIdx || 0;
+    ex.step += 1;
+    if (ex.step >= ex.layout.length) {
+      ex.floor += 1;
+      ex.step = 0;
+      ex.chosen = [];
+      ex.layout = this.genExpeditionFloor(ex.floor);
+      this.save();
+      return 'floor';
+    }
+    this.save();
+    return 'step';
+  },
+  /* ASCENSION drops — lightly biased toward gear your formation can wield */
+  dropAscensionItem() {
+    const pool = DATA.ITEMS.filter(i => i.tier === 'ascension');
+    let pick = pool[Math.floor(Math.random() * pool.length)];
+    if (pick.classReq) {
+      const roles = this.data.formation.filter(id => this.data.roster[id]).map(id => DATA.CHAMP_BY_ID[id].role);
+      const usableBy = it => !it.classReq || roles.some(r => DATA.roleMatches(r, it.classReq));
+      if (!usableBy(pick) && Math.random() < 0.5) {
+        const usable = pool.filter(usableBy);
+        if (usable.length) pick = usable[Math.floor(Math.random() * usable.length)];
+      }
+    }
+    return this.grantNamedItem(pick.id);
+  },
+  /* victory at a combat checkpoint (battle / elite / ambush / boss) */
+  winExpeditionNode(regionId, choiceIdx, nodeTypeOverride) {
+    const ex = this.expeditionState(regionId);
+    const node = this.expeditionNode(regionId, choiceIdx);
+    const type = nodeTypeOverride || (node && node.type) || 'battle';
+    const floor = ex.floor;
+    const E = DATA.EXPEDITION;
+    const se = E.stageEq(this.data.campaign.maxStage, floor);
+    const rw = E.nodeReward(se, type, floor);
+    this.grant(rw);
+    let item = null, ascension = null;
+    if (type === 'elite' && Math.random() < E.eliteRelicChance) {
+      const pick = this.randomItemOfTier(Math.random() < 0.5 ? 'mystic' : 'ultimate');
+      item = this.grantNamedItem(pick.id);
+    }
+    if (type === 'boss') {
+      // floor bosses ALWAYS pay a named relic — and roll for ASCENSION
+      const relicTier = this.rollRelicTier(Math.min(5, Math.floor(floor / 2)));
+      const pick = this.randomItemOfTier(relicTier);
+      item = this.grantNamedItem(pick.id);
+      if (Math.random() < E.bossAscensionChance(floor, regionId === 'rift')) ascension = this.dropAscensionItem();
+    }
+    const adv = this.expeditionAdvance(regionId, choiceIdx);
+    this.save();
+    return { rw, item, ascension, floor, type, floorCleared: adv === 'floor' };
+  },
+  /* instant checkpoints: treasure / cache / mystery. Mystery can AMBUSH —
+     the node turns into an elite fight and does NOT advance. */
+  resolveExpeditionNode(regionId, choiceIdx) {
+    const ex = this.expeditionState(regionId);
+    const node = this.expeditionNode(regionId, choiceIdx);
+    if (!node) return null;
+    const E = DATA.EXPEDITION;
+    const floor = ex.floor;
+    const se = E.stageEq(this.data.campaign.maxStage, floor);
+    if (node.type === 'mystery') {
+      const tot = E.MYSTERY_OUTCOMES.reduce((t, o) => t + o.w, 0);
+      let r = Math.random() * tot, out = E.MYSTERY_OUTCOMES[0];
+      for (const o of E.MYSTERY_OUTCOMES) { r -= o.w; if (r <= 0) { out = o; break; } }
+      if (out.id === 'ambush') return { ambush: true, outcome: out, floor };
+      const base = DATA.stageClearRewards(se);
+      const rw = out.id === 'gold' ? { gold: Math.round(base.gold * 1.4) }
+        : out.id === 'dust' ? { dust: Math.round(25 + se * 1.2) }
+        : out.id === 'diamonds' ? { diamonds: Math.round(60 * 1.75) }
+        : { scrolls: 1 };
+      this.grant(rw);
+      this.expeditionAdvance(regionId, choiceIdx);
+      return { rw, outcome: out, floor, type: 'mystery' };
+    }
+    const rw = E.nodeReward(se, node.type, floor);
+    this.grant(rw);
+    let gear = null, item = null, ascension = null;
+    if (node.type === 'cache') {
+      gear = this.dropGearOfRarity(Math.random() < 0.6 ? 'epic' : 'mythic', se);
+      if (Math.random() < 0.25) {
+        const pick = this.randomItemOfTier(Math.random() < 0.6 ? 'epic' : 'mystic');
+        item = this.grantNamedItem(pick.id);
+      }
+      if (Math.random() < E.cacheAscensionChance(floor)) ascension = this.dropAscensionItem();
+    }
+    const adv = this.expeditionAdvance(regionId, choiceIdx);
+    return { rw, gear, item, ascension, type: node.type, floor, floorCleared: adv === 'floor' };
+  },
+
+  /* ---------- Store overhaul: daily deals, promos, free gift ---------- */
+  ensureStoreDay() {
+    if (!this.data.storeState) this.data.storeState = { day: '', dealsBought: [], giftClaimed: false, promosBought: [] };
+    const key = this.dayKey();
+    if (this.data.storeState.day !== key) {
+      this.data.storeState.day = key;
+      this.data.storeState.dealsBought = [];
+      this.data.storeState.giftClaimed = false;
+      this.save();
+    }
   },
 
   /* ---------- Bounty Hunts (daily marks) ---------- */

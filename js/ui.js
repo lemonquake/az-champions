@@ -162,7 +162,10 @@ const UI = (() => {
       return claimable;
     }
     if (id === 'heroes') return State.ownedChampions().some(id2 => State.canAscend(id2));
-    if (id === 'store') return Object.values(State.data.chests || {}).some(n => n > 0);
+    if (id === 'store') {
+      State.ensureStoreDay();
+      return Object.values(State.data.chests || {}).some(n => n > 0) || !State.data.storeState.giftClaimed;
+    }
     return false;
   }
 
@@ -701,6 +704,16 @@ const UI = (() => {
       bossArena = true;
       label = `⚔️ AREA WARLORD — ${ww.dg.glyph} ${ww.dg.name}`;
       State.questProgress('mode1', 1);
+    } else if (type === 'expedition') {
+      const ex = State.expeditionState(param.regionId);
+      const ew = Combat.buildExpeditionWave(param.regionId, ex.floor, param.nodeType);
+      enemies = ew.wave;
+      envKey = ew.env;
+      bossArena = param.nodeType === 'boss';
+      const rg = DATA.AGDAO_REGION_BY_ID[param.regionId];
+      const ni = DATA.EXPEDITION.NODE_INFO[param.nodeType];
+      label = `🕳️ Depths of ${rg.name} F${ex.floor} — ${ni.glyph} ${ni.name}`;
+      State.questProgress('mode1', 1);
     } else if (type === 'bounty') {
       enemies = Combat.buildEnemyWave(param);
       const binfo = State.stageInfo(param);
@@ -957,6 +970,19 @@ const UI = (() => {
         State.breakRaidStreak();
         html = resultHtml(false, 'The Warlord holds the field — but Warlord challenges are FREE. Regroup and strike again!');
       }
+    } else if (battle.type === 'expedition') {
+      const { regionId, choiceIdx, nodeType } = battle.param;
+      const rg = DATA.AGDAO_REGION_BY_ID[regionId];
+      if (victory) {
+        const res = State.winExpeditionNode(regionId, choiceIdx, nodeType);
+        const ni = DATA.EXPEDITION.NODE_INFO[res.type];
+        html = resultHtml(true, `${ni.glyph} ${ni.name} cleared — Depths of ${esc(rg.name)}, Floor ${res.floor}!`, res.rw);
+        if (res.item) html += relicBannerHtml(res.item, 'DEPTHS RELIC');
+        if (res.ascension) html += ascensionBannerHtml(res.ascension);
+        if (res.floorCleared) html += `<div class="unlock-banner conquest-banner">🕳️ <b>FLOOR ${res.floor} CONQUERED!</b> The stairway to <b>FLOOR ${res.floor + 1}</b> grinds open below — deeper foes, better 🌟 ASCENSION odds.</div>`;
+      } else {
+        html = resultHtml(false, 'The Depths hold — but expedition retries are FREE. Regroup and delve again!');
+      }
     } else if (battle.type === 'bounty') {
       const bstage = battle.param;
       if (victory) {
@@ -1009,6 +1035,8 @@ const UI = (() => {
           ${brNext ? `<button class="btn gold" onclick="UI.closeModal();UI.beginBattle('bossrush', ${battle.param + 1})">NEXT BOSS ▶</button>` : ''}
           ${trNext ? `<button class="btn gold" onclick="UI.closeModal();UI.beginBattle('trials', ${battle.param + 1})">TIER ${battle.param + 1} ▶</button>` : ''}
           ${tourNext ? `<button class="btn gold" onclick="UI.closeModal();UI.beginBattle('tournament')">NEXT MATCH ▶</button>` : ''}
+          ${victory && battle.type === 'expedition' ? `<button class="btn gold" onclick="UI.closeModal();UI.show('expedition','${battle.param.regionId}')">🕳️ DELVE ON ▶</button>` : ''}
+          ${!victory && battle.type === 'expedition' ? `<button class="btn gold" onclick="UI.closeModal();UI.beginBattle('expedition',{regionId:'${battle.param.regionId}',choiceIdx:${battle.param.choiceIdx || 0},nodeType:'${battle.param.nodeType}'})">⚔️ RETRY — FREE ▶</button>` : ''}
           ${dgNext ? `<button class="btn gold" onclick="UI.closeModal();UI.beginBattle('dungeon','${battle.param}')">⚔️ RAID AGAIN ▶</button>` : ''}
           ${wlNow ? `<button class="btn gold warlord-btn" onclick="UI.closeModal();UI.fightWarlord('${battle.param}')">🏴 CHALLENGE THE AREA WARLORD ▶</button>` : ''}
           ${wlRetry ? `<button class="btn gold warlord-btn" onclick="UI.closeModal();UI.beginBattle('warlord','${battle.param}')">🏴 CHALLENGE AGAIN ▶</button>` : ''}
@@ -1418,17 +1446,25 @@ const UI = (() => {
           const isMine = g.id === equippedId;
           const enh = DATA.gearEnhanceCost(g.level);
           const itemDef = g.itemId && DATA.ITEM_BY_ID[g.itemId];
-          return `<div class="gear-item ${isMine ? 'mine' : ''} ${g.rarity === 'aether' ? 'aetherfx' : ''}" style="--c:${r.color}">
+          const canEq = State.canEquipGear(champId, g.id);
+          const reqChips = itemDef && (itemDef.levelReq || itemDef.classReq)
+            ? `<div class="gi-reqs">${itemDef.levelReq ? `<span class="req-chip ${State.data.roster[champId].level >= itemDef.levelReq ? 'met' : 'unmet'}">🌟 Lv ${itemDef.levelReq}</span>` : ''}${itemDef.classReq ? `<span class="req-chip ${DATA.roleMatches(DATA.CHAMP_BY_ID[champId].role, itemDef.classReq) ? 'met' : 'unmet'}">${DATA.ROLE_INFO[itemDef.classReq].glyph} ${DATA.ROLE_INFO[itemDef.classReq].name} only</span>` : ''}</div>`
+            : '';
+          return `<div class="gear-item ${isMine ? 'mine' : ''} ${g.rarity === 'aether' ? 'aetherfx' : ''} ${g.rarity === 'ascension' ? 'ascendfx' : ''}" style="--c:${r.color}">
             <div class="gi-main">
               <b>${esc(State.gearName(g))} +${g.level}</b>
               <span class="raritytag ${g.rarity}" style="color:${r.color}">${r.name}</span>
+              ${isMine ? '<span class="equipped-tag">✓ EQUIPPED</span>' : ''}
               <div class="gi-stat">+${State.gearStatValue(g)} ${info.main.toUpperCase()}${holder && !isMine ? ` · <i>on ${esc(DATA.CHAMP_BY_ID[holder].name)}</i>` : ''}</div>
               ${itemDef ? `<div class="gi-fx">✦ ${esc(itemDef.fxDesc)}</div>` : ''}
+              ${reqChips}
             </div>
             <div class="gi-btns">
               ${isMine
                 ? `<button class="mini" onclick="UI.gearUnequip('${champId}','${slot}')">UNEQUIP</button>`
-                : `<button class="mini gold" onclick="UI.gearEquip('${champId}','${g.id}')">EQUIP</button>`}
+                : canEq.ok
+                  ? `<button class="mini gold" onclick="UI.gearEquip('${champId}','${g.id}')">EQUIP</button>`
+                  : `<button class="mini locked" onclick="UI.gearEquipBlocked('${g.id}','${champId}')">🔒 EQUIP</button>`}
               ${g.level < DATA.GEAR_MAX_LEVEL ? `<button class="mini ${State.canAfford(enh) ? '' : 'disabled'}" onclick="UI.gearEnhance('${champId}','${slot}','${g.id}')">+1 <small>💰${fmt(enh.gold)} ✨${enh.dust}</small></button>` : '<span class="dim">MAX</span>'}
               ${!holder && !g.exclusiveId ? `<button class="mini danger" onclick="UI.gearSalvage('${champId}','${slot}','${g.id}')">♻</button>` : ''}
             </div>
@@ -1437,8 +1473,30 @@ const UI = (() => {
       </div>
       <div class="modal-btns"><button class="btn" onclick="UI.closeModal()">CLOSE</button></div>`);
   }
-  function gearEquip(champId, gearId) { State.equipGear(champId, gearId); GameAudio.sfx('coin'); show('herodetail', champId); }
-  function gearUnequip(champId, slot) { State.unequipGear(champId, slot); show('herodetail', champId); }
+  /* NOTE: the screen behind is re-rendered AND the picker modal is
+     re-opened — without the re-open, the freshly equipped item kept
+     showing a stale "EQUIP" button instead of "✓ EQUIPPED". */
+  function gearEquip(champId, gearId) {
+    const g = State.data.gear[gearId];
+    if (!State.equipGear(champId, gearId)) {
+      const chk = State.canEquipGear(champId, gearId);
+      GameAudio.sfx('error'); toast(chk.reason || 'Cannot equip', 'bad'); return;
+    }
+    GameAudio.sfx('coin');
+    toast('✓ Equipped!', 'good');
+    show('herodetail', champId);
+    openGearPicker(champId, g.slot);
+  }
+  function gearUnequip(champId, slot) {
+    State.unequipGear(champId, slot);
+    show('herodetail', champId);
+    openGearPicker(champId, slot);
+  }
+  function gearEquipBlocked(gearId, champId) {
+    const chk = State.canEquipGear(champId, gearId);
+    GameAudio.sfx('error');
+    toast(chk.reason || 'Cannot equip', 'bad');
+  }
   function gearEnhance(champId, slot, gearId) {
     if (State.enhanceGear(gearId)) { GameAudio.sfx('levelup'); openGearPicker(champId, slot); refreshTopbar(); }
     else GameAudio.sfx('error');
@@ -1701,7 +1759,21 @@ const UI = (() => {
           <p class="ag-desc">${esc(selR.desc)}</p>
           ${locked
             ? `<div class="ag-locked">🔒 Clear <b>Stage ${State.stageInfo(selR.unlockStage).label}</b> of the campaign to unlock ${esc(selR.name)}.</div>`
-            : dgs.map(dg => {
+            : (() => {
+                const ex = State.expeditionState(selR.id);
+                const node = State.expeditionNode(selR.id, 0);
+                const ni = node ? DATA.EXPEDITION.NODE_INFO[node.type] : null;
+                return `
+                <div class="dg-card exp-card ascendfx" style="--rc:${selR.color}" onclick="UI.openExpedition('${selR.id}')">
+                  <div class="dg-glyph">🕳️</div>
+                  <div class="dg-info">
+                    <b>Depths of ${esc(selR.name)}</b> <span class="dg-focus asc-focus">🌟 ASCENSION GEAR</span>
+                    <p>Delve the dungeon-crawl beneath ${esc(selR.name)} — checkpoint by checkpoint, fork by fork, boss by boss. The ONLY source of Lv-100 ASCENSION gear.</p>
+                    <div class="dg-meta"><b class="conq-text">FLOOR ${ex.floor}</b> · checkpoint ${ex.step + 1}/${ex.layout.length}${ni ? ` · next: ${ni.glyph} ${ni.name}` : ''} · Enemy Lv ~${DATA.enemyLevelForStage(DATA.EXPEDITION.stageEq(ms, ex.floor))}</div>
+                  </div>
+                  <button class="btn gold">🕳️ DELVE</button>
+                </div>`;
+              })() + dgs.map(dg => {
                 const tier = State.conquestTier(dg.id);
                 const surge = State.isSurging(dg.id);
                 const fi = DATA.DUNGEONS.FOCUS_INFO[dg.focus];
@@ -1817,6 +1889,200 @@ const UI = (() => {
     beginBattle('bounty', stage);
   }
 
+  /* ============================================================
+     DEPTHS OF AGDAO — EXPEDITIONS. A dungeon-crawler under every
+     region: your champion's marker walks a winding path of
+     checkpoints, the traveled line extends behind it, forks let
+     you pick the way, and the FLOOR BOSS guards the stairs down.
+     Deep floors drop ASCENSION gear (Lv 100 exclusives).
+  ============================================================ */
+  let expedSel = null;
+
+  function openExpedition(regionId) {
+    expedSel = regionId;
+    show('expedition', regionId);
+  }
+
+  SCREENS.expedition = {
+    render(regionId) {
+      regionId = regionId || expedSel || DATA.AGDAO.regions[0].id;
+      expedSel = regionId;
+      const r = DATA.AGDAO_REGION_BY_ID[regionId];
+      const ex = State.expeditionState(regionId);
+      const E = DATA.EXPEDITION;
+      const ms = State.data.campaign.maxStage;
+      const se = E.stageEq(ms, ex.floor);
+      const leaderId = State.data.formation.find(id => State.data.roster[id]) || State.ownedChampions()[0];
+
+      /* --- geometry: entrance at the bottom, boss at the top --- */
+      const stepY = i => 520 - i * (460 / (ex.layout.length - 1));
+      const nodeX = (step, idx) => step.length === 1
+        ? 180 + (step[idx].jx || 0)
+        : (idx === 0 ? 105 : 255) + (step[idx].jx || 0);
+      const posOf = (i, ci) => ({ x: nodeX(ex.layout[i], Math.min(ci, ex.layout[i].length - 1)), y: stepY(i) });
+      const entrance = { x: 180, y: 566 };
+
+      /* traveled path — the line that extends behind the raider */
+      const traveled = [entrance];
+      for (let i = 0; i < ex.step; i++) traveled.push(posOf(i, ex.chosen[i] || 0));
+      const cur = traveled[traveled.length - 1];
+
+      let svg = '';
+      /* faint web of the ways ahead — the "random ways" */
+      for (let i = ex.step; i < ex.layout.length - 1; i++) {
+        const froms = i === ex.step ? [cur] : ex.layout[i].map((n, ci) => posOf(i, ci));
+        const tos = ex.layout[i + 1].map((n, ci) => posOf(i + 1, ci));
+        froms.forEach(f => tos.forEach(t => {
+          svg += `<line class="exp-way" x1="${f.x}" y1="${f.y}" x2="${t.x}" y2="${t.y}"/>`;
+        }));
+      }
+      /* choice lines from the marker to the current checkpoint options */
+      if (ex.step < ex.layout.length) {
+        ex.layout[ex.step].forEach((n, ci) => {
+          const p = posOf(ex.step, ci);
+          svg += `<line class="exp-choice" x1="${cur.x}" y1="${cur.y}" x2="${p.x}" y2="${p.y}"/>`;
+        });
+      }
+      /* the traveled line */
+      if (traveled.length > 1) {
+        const pts = traveled.map(p => `${p.x},${p.y}`).join(' ');
+        svg += `<polyline class="exp-path-done" points="${pts}"/>`;
+        const a = traveled[traveled.length - 2], b = traveled[traveled.length - 1];
+        svg += `<line class="exp-path-new" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
+      }
+      /* checkpoint nodes */
+      ex.layout.forEach((step, i) => {
+        step.forEach((n, ci) => {
+          const p = posOf(i, ci);
+          const ni = E.NODE_INFO[n.type];
+          const visited = i < ex.step;
+          const chosen = visited && (ex.chosen[i] || 0) === ci;
+          const isCurrent = i === ex.step;
+          const isNext = i === ex.step + 1;
+          const fogged = i > ex.step + 1 && n.type !== 'boss';
+          const glyph = fogged ? '❔' : ni.glyph;
+          const cls = ['exp-node',
+            visited ? (chosen ? 'done' : 'skipped') : '',
+            isCurrent ? 'current' : '',
+            isNext ? 'next' : '',
+            fogged ? 'fog' : '',
+            n.type === 'boss' ? 'boss' : ''].join(' ');
+          const tap = isCurrent ? ` onclick="UI.expeditionTapNode(${ci})"` : '';
+          svg += `<g class="${cls}"${tap}>
+            ${isCurrent ? `<circle class="exp-pulse" cx="${p.x}" cy="${p.y}" r="26"/>` : ''}
+            <circle class="exp-ring" cx="${p.x}" cy="${p.y}" r="${n.type === 'boss' ? 24 : 19}"/>
+            <text class="exp-glyph" x="${p.x}" y="${p.y + (n.type === 'boss' ? 8 : 6)}" text-anchor="middle">${visited && chosen ? '✓' : glyph}</text>
+          </g>`;
+        });
+      });
+      /* entrance marker + the raider (leader portrait) */
+      svg += `<text class="exp-entrance" x="${entrance.x}" y="${entrance.y + 24}" text-anchor="middle">⛩ ENTRANCE</text>`;
+      svg += `
+        <g class="exp-raider" transform="translate(${cur.x},${cur.y})">
+          <circle class="exp-raider-ring" r="17"/>
+          ${leaderId ? `<image href="${portrait(leaderId)}" x="-14" y="-14" width="28" height="28" clip-path="circle(14px)"/>` : '<text y="6" text-anchor="middle">🚩</text>'}
+        </g>`;
+
+      /* --- the checkpoint panel: what's next, choose your way --- */
+      const stepNodes = ex.layout[ex.step] || [];
+      const ascPct = Math.round(E.bossAscensionChance(ex.floor, regionId === 'rift') * 100);
+      const panel = `
+        <div class="ag-panel exp-panel" style="--rc:${r.color}">
+          <div class="ag-panel-head">
+            <span class="ag-panel-glyph">🕳️</span>
+            <div class="ag-panel-titles"><b>Depths of ${esc(r.name)} — FLOOR ${ex.floor}</b>
+            <span class="ag-title">Checkpoint ${ex.step + 1}/${ex.layout.length} · Enemy Lv ~${DATA.enemyLevelForStage(se)} · 👑 Boss ASCENSION odds: <b class="asc-text">${ascPct}%</b></span></div>
+          </div>
+          ${stepNodes.length > 1 ? '<p class="exp-fork-label">⑂ THE PATH FORKS — choose your way:</p>' : ''}
+          <div class="exp-choices">
+            ${stepNodes.map((n, ci) => {
+              const ni = E.NODE_INFO[n.type];
+              return `<div class="exp-choice-card ${n.type}" onclick="UI.expeditionTapNode(${ci})">
+                <div class="ecc-glyph">${ni.glyph}</div>
+                <div class="ecc-info"><b>${ni.name}</b><p>${ni.desc}</p></div>
+                <button class="btn gold mini-btn">${['battle', 'elite', 'boss'].includes(n.type) ? '⚔️ FIGHT' : '➤ ENTER'}</button>
+              </div>`;
+            }).join('')}
+          </div>
+          <div class="hint center">Defeats cost NOTHING — retry any checkpoint freely. Clear the 👑 FLOOR BOSS to delve to Floor ${ex.floor + 1}: tougher enemies, better odds at 🌟 <b>ASCENSION gear</b> (requires Lv 100 champions${regionId === 'rift' ? ' · Rift depths roll +50% ASCENSION luck' : ''}).</div>
+        </div>`;
+
+      return `
+        <div class="pagehead"><button class="backbtn modern-back" onclick="UI.show('agdao')"><span class="arrow">←</span> MAP</button>
+          <h2>🕳️ Depths of ${esc(r.name)}</h2></div>
+        <div class="exped-layout">
+          <div class="exp-map-wrap" style="--rc:${r.color}">
+            <div class="exp-floor-badge">FLOOR ${ex.floor}</div>
+            <svg viewBox="0 0 360 600" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <radialGradient id="expBg" cx="50%" cy="30%" r="80%">
+                  <stop offset="0%" stop-color="${r.color}" stop-opacity="0.16"/>
+                  <stop offset="60%" stop-color="#0a0c17" stop-opacity="0.9"/>
+                  <stop offset="100%" stop-color="#06070d"/>
+                </radialGradient>
+              </defs>
+              <rect x="0" y="0" width="360" height="600" rx="18" fill="url(#expBg)"/>
+              ${svg}
+            </svg>
+          </div>
+          ${panel}
+        </div>`;
+    },
+  };
+
+  function expeditionTapNode(choiceIdx) {
+    const regionId = expedSel;
+    if (!regionId) return;
+    const node = State.expeditionNode(regionId, choiceIdx);
+    if (!node) return;
+    if (['battle', 'elite', 'boss'].includes(node.type)) {
+      beginBattle('expedition', { regionId, choiceIdx, nodeType: node.type });
+      return;
+    }
+    const res = State.resolveExpeditionNode(regionId, choiceIdx);
+    if (!res) return;
+    if (res.ambush) {
+      GameAudio.sfx('error');
+      modal(`
+        <h3 class="center">💀 AMBUSH!</h3>
+        <p class="center">${esc(res.outcome.text)}</p>
+        <p class="center dim">The "mystery" was bait — an elite pack blocks the path. Defeat it to advance (retries are FREE).</p>
+        <div class="modal-btns">
+          <button class="btn gold" onclick="UI.closeModal();UI.beginBattle('expedition',{regionId:'${regionId}',choiceIdx:${choiceIdx},nodeType:'elite'})">⚔️ FIGHT</button>
+        </div>`, { sticky: true });
+      return;
+    }
+    GameAudio.sfx('coin');
+    const ni = DATA.EXPEDITION.NODE_INFO[res.type] || {};
+    const title = res.outcome ? `${res.outcome.glyph} ${esc(res.outcome.text)}` : `${ni.glyph} ${ni.name} claimed!`;
+    let extra = '';
+    if (res.gear) {
+      const gr = State.gearRarity(res.gear);
+      extra += `<div class="gear-drop" style="--c:${gr.color}">${DATA.GEAR_SLOT_INFO[res.gear.slot].glyph} <b>${esc(State.gearName(res.gear))}</b> <span class="raritytag">${gr.name}</span></div>`;
+    }
+    if (res.item) extra += relicBannerHtml(res.item, 'CACHE RELIC');
+    if (res.ascension) extra += ascensionBannerHtml(res.ascension);
+    modal(`
+      <div class="result win">
+        <div class="result-title">${res.type === 'mystery' ? 'FORTUNE!' : 'LOOTED!'}</div>
+        ${resultHtml(true, title, res.rw)}${extra}
+        <div class="modal-btns">
+          <button class="btn gold" onclick="UI.closeModal();UI.show('expedition','${regionId}')">DELVE ON ▶</button>
+        </div>
+      </div>`, { sticky: true });
+    refreshTopbar();
+  }
+
+  /* banner for a dropped ASCENSION item — the realm's rarest loot */
+  function ascensionBannerHtml(gRec) {
+    const it = DATA.ITEM_BY_ID[gRec.itemId];
+    if (!it) return '';
+    return `<div class="unlock-banner ascension-banner ascendfx">
+      🌟 <b>ASCENSION DROP — ${esc(it.name)}</b> <span class="raritytag ascension">ASCENSION</span>
+      <br><small>${esc(it.fxDesc)}</small>
+      <br><small class="dim">Requires a Lv 100 champion${it.classReq ? ` · ${DATA.ROLE_INFO[it.classReq].glyph} ${DATA.ROLE_INFO[it.classReq].name} EXCLUSIVE` : ''}</small></div>`;
+  }
+
   /* ---------------- STORE ---------------- */
   SCREENS.store = {
     render(tab) {
@@ -1880,31 +2146,81 @@ const UI = (() => {
           <h3>💀 Boss Chests</h3>
           <div class="chest-grid">${boss.map(chestCard).join('')}</div>
           <div class="hint center">Boss Chests drop from clearing Boss Rush. Trials and the Abyss award chests too — earned chests stack here until you open them. Chests of Agdao are the only Store source of named Epic, Legendary and AETHER relics.</div>`;
+      } else if (tab === 'deals') {
+        State.ensureStoreDay();
+        const ss = State.data.storeState;
+        const deals = S.dealsOfDay(State.dayKey());
+        const gift = S.freeGift;
+        body = `
+          <div class="free-gift-card ${ss.giftClaimed ? 'claimed' : ''}" onclick="${ss.giftClaimed ? '' : 'UI.claimFreeGift()'}">
+            <div class="fg-glyph">${gift.glyph}</div>
+            <div class="fg-info">
+              <b>${esc(gift.name)} <span class="freetag">FREE</span></b>
+              <p>${esc(gift.blurb)}</p>
+              <div class="fg-contents">💎 ${gift.gives.diamonds} · ✨ ${gift.gives.dust} · 💰 ${gift.gives.goldByStage}min of Gold</div>
+            </div>
+            ${ss.giftClaimed ? '<div class="fg-claimed">✔ CLAIMED<br><small>back tomorrow</small></div>' : '<button class="btn gold">🎁 CLAIM</button>'}
+          </div>
+
+          <h3>⚡ Today's Flash Deals <span class="chip deal-chip">RESET DAILY · 1 EACH</span></h3>
+          <div class="deal-grid">
+            ${deals.map(dd => {
+              const bought = ss.dealsBought.includes(dd.id);
+              return `<div class="deal-card ${bought ? 'bought' : ''}" onclick="${bought ? '' : `UI.buyDeal('${dd.id}')`}">
+                <div class="save-ribbon">-${dd.save}%</div>
+                <div class="deal-glyph">${dd.glyph}</div>
+                <div class="deal-name">${esc(dd.name)}</div>
+                <div class="deal-gives">${storeGivesHtml(dd.gives)}</div>
+                <div class="deal-price">${bought ? '<span class="deal-done">✔ CLAIMED</span>' : `<span class="was">💎 ${fmt(dd.value)}</span><b>💎 ${fmt(dd.costD)}</b>`}</div>
+              </div>`;
+            }).join('')}
+          </div>
+
+          <h3>🌟 Promo Bundles <span class="chip deal-chip gold-chip">STACKED VALUE</span></h3>
+          <div class="promo-list">
+            ${S.promos.map(p => {
+              const soldOut = p.onceEver && ss.promosBought.includes(p.id);
+              return `<div class="promo-card ${soldOut ? 'bought' : ''}" onclick="${soldOut ? '' : `UI.buyPromo('${p.id}')`}">
+                <div class="save-ribbon big">SAVE ${p.save}%</div>
+                <div class="promo-glyph">${p.glyph}</div>
+                <div class="promo-info">
+                  <b>${esc(p.name)}</b> ${p.onceEver ? '<span class="oncetag">ONCE PER ACCOUNT</span>' : ''}
+                  <p>${esc(p.blurb)}</p>
+                  <div class="promo-value">Worth <s>💎 ${fmt(p.value)}</s> in the Market</div>
+                </div>
+                <div class="promo-buy">${soldOut ? '<span class="deal-done">✔ CLAIMED</span>' : `<button class="btn gold">💎 ${fmt(p.costD)}</button>`}</div>
+              </div>`;
+            }).join('')}
+          </div>
+          <div class="hint center">Flash Deals rotate every day — Promo Bundles bundle Diamonds, Gold, XP, Summon Scrolls and Gear Dust at a deep discount over Market prices.</div>`;
       } else if (tab === 'diamonds') {
         body = `<div class="dp-grid">
           ${S.diamondPacks.map(p => `
-            <div class="pack dpack" onclick="UI.buyPack('${p.id}')">
+            <div class="pack dpack ${p.tag ? 'tagged' : ''}" onclick="UI.buyPack('${p.id}')">
+              ${p.tag ? `<div class="value-ribbon">${p.tag}</div>` : ''}
               <div class="pk-ico">${p.glyph}</div>
               <b>${fmt(p.diamonds)} 💎</b>
-              ${p.bonus ? `<div class="dp-bonus">+${fmt(p.bonus)} BONUS</div>` : '<div class="dp-bonus dim">—</div>'}
+              ${p.bonus ? `<div class="dp-bonus">+${fmt(p.bonus)} BONUS (+${Math.round(p.bonus / p.diamonds * 100)}%)</div>` : '<div class="dp-bonus dim">—</div>'}
               <div class="pk-price">$${p.price}</div>
             </div>`).join('')}
         </div>
         <div class="hint center">Payments are processed securely by PayPal.</div>`;
       } else {
-        body = `<div class="market-list">
-          ${S.diamondShop.map(i => `
-            <div class="pack market" onclick="UI.buyDiamondItem('${i.id}')">
-              <div class="pk-ico">${i.glyph}</div>
-              <div class="pk-info"><b>${esc(i.name)}</b>${i.tag ? `<span class="savetag">${i.tag}</span>` : ''}</div>
-              <div class="pk-price">💎 ${fmt(i.costD)}</div>
-            </div>`).join('')}
-        </div>`;
+        body = `
+        <h3>📜 Summon Scrolls</h3>
+        <div class="market-list">${S.diamondShop.filter(i => i.gives.scrolls).map(marketItemHtml).join('')}</div>
+        <h3>💰 Gold & 📗 XP <span class="chip deal-chip">SCALES WITH YOUR STAGE</span></h3>
+        <div class="market-list">${S.diamondShop.filter(i => i.gives.goldByStage || i.gives.xpByStage).map(marketItemHtml).join('')}</div>
+        <h3>✨ Gear Dust <span class="chip deal-chip">FUEL FOR ENHANCING</span></h3>
+        <div class="market-list">${S.diamondShop.filter(i => i.gives.dust).map(marketItemHtml).join('')}</div>
+        <div class="hint center">Bigger caches always cost fewer 💎 per unit — the SAVE tag shows exactly how much.</div>`;
       }
+      const dealsLeft = (() => { State.ensureStoreDay(); const ss = State.data.storeState; return (!ss.giftClaimed ? 1 : 0) + Math.max(0, S.dealsOfDay(State.dayKey()).length - ss.dealsBought.length); })();
       return `
         <div class="pagehead"><h2>Store</h2></div>
         <div class="tabs">
           <button class="tab ${tab === 'featured' ? 'on' : ''}" onclick="UI.show('store','featured')">⭐ Featured</button>
+          <button class="tab ${tab === 'deals' ? 'on' : ''}" onclick="UI.show('store','deals')">🔥 Deals${dealsLeft ? '<span class="nbadge tab-badge"></span>' : ''}</button>
           <button class="tab ${tab === 'chests' ? 'on' : ''}" onclick="UI.show('store','chests')">🎁 Chests${Object.values(State.data.chests || {}).some(n => n > 0) ? '<span class="nbadge tab-badge"></span>' : ''}</button>
           <button class="tab ${tab === 'diamonds' ? 'on' : ''}" onclick="UI.show('store','diamonds')">💎 Diamonds</button>
           <button class="tab ${tab === 'market' ? 'on' : ''}" onclick="UI.show('store','market')">🏪 Market</button>
@@ -1912,6 +2228,65 @@ const UI = (() => {
         <div class="store-body">${body}</div>`;
     },
   };
+
+  /* human-readable contents line for deals/promos */
+  function storeGivesHtml(g) {
+    const bits = [];
+    if (g.scrolls) bits.push(`📜 ×${g.scrolls}`);
+    if (g.diamonds) bits.push(`💎 ${fmt(g.diamonds)}`);
+    if (g.dust) bits.push(`✨ ${fmt(g.dust)}`);
+    if (g.goldByStage) bits.push(`💰 ${g.goldByStage}min`);
+    if (g.xpByStage) bits.push(`📗 ${g.xpByStage}min`);
+    if (g.chest) { const c = DATA.CHEST_BY_ID[g.chest]; bits.push(`${c.glyph} ${c.name}`); }
+    return bits.join(' · ');
+  }
+  function marketItemHtml(i) {
+    return `<div class="pack market" onclick="UI.buyDiamondItem('${i.id}')">
+      <div class="pk-ico">${i.glyph}</div>
+      <div class="pk-info"><b>${esc(i.name)}</b>${i.tag ? `<span class="savetag">${i.tag}</span>` : ''}</div>
+      <div class="pk-price">💎 ${fmt(i.costD)}</div>
+    </div>`;
+  }
+
+  /* purchase result modal shared by deals / promos / gift */
+  function storeLootModal(title, glyph, grant, chestId, save) {
+    const bits = Object.keys(grant).map(k => ({
+      gold: { g: '💰', l: 'Gold' }, xp: { g: '📗', l: 'XP' }, diamonds: { g: '💎', l: 'Diamonds' },
+      scrolls: { g: '📜', l: 'Scrolls' }, dust: { g: '✨', l: 'Gear Dust' },
+    }[k] ? { glyph: { gold: '💰', xp: '📗', diamonds: '💎', scrolls: '📜', dust: '✨' }[k], label: k.toUpperCase(), amt: grant[k] } : null)).filter(Boolean);
+    modal(`
+      <div class="chest-reveal" style="--cc:#f5c542">
+        <div class="cr-chest">${glyph}</div>
+        <h3 class="center" style="color:#f5c542">${esc(title)}${save ? ` — SAVED ${save}%!` : ''}</h3>
+        <div class="cr-loot">
+          ${bits.map((b, i) => `<div class="cr-item" style="--d:${0.2 + i * 0.14}s"><div class="cri-glyph">${b.glyph}</div><div class="cri-label">${b.label}</div><div class="cri-amt">×${fmt(b.amt)}</div></div>`).join('')}
+          ${chestId ? (() => { const c = DATA.CHEST_BY_ID[chestId]; return `<div class="cr-item jackpot" style="--d:${0.2 + bits.length * 0.14}s"><div class="cri-glyph">${c.glyph}</div><div class="cri-label">${esc(c.name)}</div><div class="cri-amt">OPEN IN CHESTS TAB</div></div>`; })() : ''}
+        </div>
+        <div class="modal-btns"><button class="btn gold" onclick="UI.closeModal();UI.show('store','deals')">EXCELLENT</button></div>
+      </div>`, { sticky: true });
+  }
+  function buyPromo(promoId) {
+    const p = DATA.STORE.promos.find(x => x.id === promoId);
+    if (!p) return;
+    const r = Store.buyPromo(promoId);
+    if (!r.ok) { GameAudio.sfx('error'); toast(r.reason, 'bad'); return; }
+    GameAudio.sfx('buy'); refreshTopbar();
+    storeLootModal(p.name, p.glyph, r.grant, r.chest, p.save);
+  }
+  function buyDeal(dealId) {
+    const dd = DATA.STORE.dealsOfDay(State.dayKey()).find(x => x.id === dealId);
+    if (!dd) return;
+    const r = Store.buyDeal(dealId);
+    if (!r.ok) { GameAudio.sfx('error'); toast(r.reason, 'bad'); return; }
+    GameAudio.sfx('buy'); refreshTopbar();
+    storeLootModal(dd.name, dd.glyph, r.grant, r.chest, dd.save);
+  }
+  function claimFreeGift() {
+    const r = Store.claimFreeGift();
+    if (!r.ok) { GameAudio.sfx('error'); toast(r.reason, 'bad'); return; }
+    GameAudio.sfx('buy'); refreshTopbar();
+    storeLootModal("Merchant's Favor — FREE", DATA.STORE.freeGift.glyph, r.grant, null, null);
+  }
 
   /* ---------------- CHEST BUY / OPEN ---------------- */
   function buyChest(chestId) {
@@ -1979,7 +2354,7 @@ const UI = (() => {
     closeModal();
     if (r.ok) {
       GameAudio.sfx('buy');
-      toast('Purchased! ' + Object.keys(r.grant).map(k => `${{ gold: '💰', xp: '📗', scrolls: '📜', dust: '✨' }[k]} ${fmt(r.grant[k])}`).join(' '), 'good');
+      toast('Purchased! ' + Object.keys(r.grant).map(k => `${{ gold: '💰', xp: '📗', scrolls: '📜', dust: '✨', diamonds: '💎' }[k]} ${fmt(r.grant[k])}`).join(' '), 'good');
       refreshTopbar();
     } else { GameAudio.sfx('error'); toast(r.reason, 'bad'); }
   }
@@ -2633,12 +3008,13 @@ const UI = (() => {
             const info = DATA.GEAR_SLOT_INFO[g.slot];
             const holder = State.gearEquippedBy(g.id);
             const itemDef = g.itemId && DATA.ITEM_BY_ID[g.itemId];
-            return `<div class="inv-item ${g.rarity === 'aether' ? 'aetherfx' : ''} ${g.rarity === 'legendary' ? 'legendfx' : ''}" style="--c:${r.color}" onclick="UI.gearDetail('${g.id}')">
+            return `<div class="inv-item ${g.rarity === 'aether' ? 'aetherfx' : ''} ${g.rarity === 'ascension' ? 'ascendfx' : ''} ${g.rarity === 'legendary' ? 'legendfx' : ''}" style="--c:${r.color}" onclick="UI.gearDetail('${g.id}')">
               <div class="ii-glyph">${info.glyph}</div>
               <div class="ii-name">${esc(State.gearName(g))}${g.level ? ` <b>+${g.level}</b>` : ''}</div>
               <div class="ii-stat">+${State.gearStatValue(g)} ${info.main.toUpperCase()}</div>
-              <div class="ii-rarity ${g.rarity === 'aether' ? 'aether-text' : ''}" style="color:${r.color}">${r.name.toUpperCase()}</div>
+              <div class="ii-rarity ${g.rarity === 'aether' ? 'aether-text' : ''} ${g.rarity === 'ascension' ? 'asc-text' : ''}" style="color:${r.color}">${r.name.toUpperCase()}</div>
               ${itemDef ? `<div class="ii-fx">✦ ${esc(itemDef.fxDesc)}</div>` : ''}
+              ${itemDef && (itemDef.levelReq || itemDef.classReq) ? `<div class="ii-req">🌟 Lv ${itemDef.levelReq}${itemDef.classReq ? ` · ${DATA.ROLE_INFO[itemDef.classReq].glyph} ${DATA.ROLE_INFO[itemDef.classReq].name} only` : ''}</div>` : ''}
               ${holder ? `<div class="ii-holder"><img src="${portrait(holder)}" alt=""><span>${esc(DATA.CHAMP_BY_ID[holder].name)}</span></div>` : ''}
             </div>`;
           }).join('') : '<div class="dim center pad" style="grid-column:1/-1;">No gear yet — clear campaign stages or craft at the Relic Forge above.</div>'}
@@ -2752,15 +3128,16 @@ const UI = (() => {
     const enh = DATA.gearEnhanceCost(g.level);
     const activeSets = holder ? State.gearSetBonuses(holder) : [];
     return modal(`
-      <div class="gear-tooltip ${g.rarity === 'aether' ? 'aetherfx' : ''}" style="--c:${r.color}">
+      <div class="gear-tooltip ${g.rarity === 'aether' ? 'aetherfx' : ''} ${g.rarity === 'ascension' ? 'ascendfx' : ''}" style="--c:${r.color}">
         <div class="gt-head">
           <div class="gt-glyph">${info.glyph}</div>
           <div>
             <b class="gt-name">${esc(State.gearName(g))}${g.level ? ` +${g.level}` : ''}</b>
-            <div><span class="raritytag ${g.rarity}" style="color:${r.color}">${r.name}</span> <span class="dim">· ${info.name}${g.exclusiveId ? ' · EXCLUSIVE' : ''}${itemDef ? ' · NAMED RELIC' : ''}</span></div>
+            <div><span class="raritytag ${g.rarity}" style="color:${r.color}">${r.name}</span> <span class="dim">· ${info.name}${g.exclusiveId ? ' · EXCLUSIVE' : ''}${itemDef ? (itemDef.tier === 'ascension' ? ' · ASCENSION GEAR' : ' · NAMED RELIC') : ''}</span></div>
           </div>
         </div>
-        ${itemDef ? `<div class="gt-fx ${itemDef.tier}"><b>✦ ${itemDef.tier === 'aether' ? 'AETHER EFFECT' : 'RELIC EFFECT'}</b><p>${esc(itemDef.fxDesc)}</p></div>` : ''}
+        ${itemDef ? `<div class="gt-fx ${itemDef.tier}"><b>✦ ${itemDef.tier === 'aether' ? 'AETHER EFFECT' : itemDef.tier === 'ascension' ? 'ASCENSION EFFECT' : 'RELIC EFFECT'}</b><p>${esc(itemDef.fxDesc)}</p></div>` : ''}
+        ${itemDef && (itemDef.levelReq || itemDef.classReq) ? `<div class="gt-req">🌟 Requires <b>Level ${itemDef.levelReq}</b> champion${itemDef.classReq ? ` · <b>${DATA.ROLE_INFO[itemDef.classReq].glyph} ${DATA.ROLE_INFO[itemDef.classReq].name} EXCLUSIVE</b>` : ''}</div>` : ''}
         ${holder ? `<div class="gt-holder"><img src="${portrait(holder)}" alt=""> Equipped by <b>${esc(DATA.CHAMP_BY_ID[holder].name)}</b></div>`
                  : '<div class="gt-holder dim">Not equipped</div>'}
         <div class="gt-stats">
@@ -2895,7 +3272,7 @@ const UI = (() => {
     openFormation, toggleFormation, confirmFormation,
     beginBattle, tickBattle, tryUlt, toggleSpeed, toggleAuto, giveUp,
     doLevelUp, doAscend, lockedInfo,
-    openGearPicker, gearEquip, gearUnequip, gearEnhance, gearSalvage,
+    openGearPicker, gearEquip, gearUnequip, gearEquipBlocked, gearEnhance, gearSalvage,
     doSummon, claimQuest, claimChest,
     buyPack, startPaypal, confirmPaypal, buyDiamondItem, confirmDiamondItem,
     fightArena, rerollArena,
@@ -2914,6 +3291,7 @@ const UI = (() => {
     claimAchievement, showStreakModal, closeStreakModal,
     doSweep, presetSave, presetLoad, doOptimize,
     selectRegion, raidDungeon, fightWarlord, fightBounty, openFusion, doFusion,
+    openExpedition, expeditionTapNode, buyPromo, buyDeal, claimFreeGift,
     get battle() { return battle; },
   };
 })();

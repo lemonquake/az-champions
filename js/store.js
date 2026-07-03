@@ -128,21 +128,69 @@ const Store = (() => {
       || S.specials.find(p => p.id === packId);
   }
 
+  /* Convert a `gives` spec into a concrete grant (idle-rate math keeps
+     gold/XP caches relevant at any stage — the shared-curve invariant). */
+  function givesToGrant(g) {
+    const rates = DATA.idleRates(State.data.campaign.maxStage);
+    const grant = {};
+    if (g.scrolls) grant.scrolls = g.scrolls;
+    if (g.dust) grant.dust = g.dust;
+    if (g.diamonds) grant.diamonds = g.diamonds;
+    if (g.goldByStage) grant.gold = Math.floor(rates.goldPerMin * g.goldByStage);
+    if (g.xpByStage) grant.xp = Math.floor(rates.xpPerMin * g.xpByStage);
+    return grant;
+  }
+
   /* Diamond (in-game currency) shop */
   function buyDiamondItem(itemId) {
     const item = DATA.STORE.diamondShop.find(i => i.id === itemId);
     if (!item) return { ok: false, reason: 'Unknown item' };
     if (!State.spend({ diamonds: item.costD })) return { ok: false, reason: 'Not enough Diamonds' };
-    const g = item.gives;
-    const rates = DATA.idleRates(State.data.campaign.maxStage);
-    const grant = {};
-    if (g.scrolls) grant.scrolls = g.scrolls;
-    if (g.dust) grant.dust = g.dust;
-    if (g.goldByStage) grant.gold = Math.floor(rates.goldPerMin * g.goldByStage);
-    if (g.xpByStage) grant.xp = Math.floor(rates.xpPerMin * g.xpByStage);
+    const grant = givesToGrant(item.gives);
     State.grant(grant);
     return { ok: true, grant };
   }
 
-  return { beginCheckout, confirmPayment, findPack, buyDiamondItem, paypalUrl };
+  /* Promo bundles — big multi-resource value packs (some once per account) */
+  function buyPromo(promoId) {
+    State.ensureStoreDay();
+    const p = DATA.STORE.promos.find(x => x.id === promoId);
+    if (!p) return { ok: false, reason: 'Unknown promo' };
+    if (p.onceEver && State.data.storeState.promosBought.includes(p.id)) return { ok: false, reason: 'Already claimed — this promo is once per account' };
+    if (!State.spend({ diamonds: p.costD })) return { ok: false, reason: 'Not enough Diamonds' };
+    const grant = givesToGrant(p.gives);
+    State.grant(grant);
+    if (p.gives.chest) State.grantChest(p.gives.chest, 1);
+    if (p.onceEver) State.data.storeState.promosBought.push(p.id);
+    State.save();
+    return { ok: true, grant, chest: p.gives.chest };
+  }
+
+  /* Daily flash deals — 3 rotate in each day, one purchase each */
+  function buyDeal(dealId) {
+    State.ensureStoreDay();
+    const deal = DATA.STORE.dealsOfDay(State.dayKey()).find(x => x.id === dealId);
+    if (!deal) return { ok: false, reason: 'That deal has expired' };
+    if (State.data.storeState.dealsBought.includes(dealId)) return { ok: false, reason: 'Deal already claimed today — fresh deals tomorrow!' };
+    if (!State.spend({ diamonds: deal.costD })) return { ok: false, reason: 'Not enough Diamonds' };
+    State.data.storeState.dealsBought.push(dealId);
+    const grant = givesToGrant(deal.gives);
+    State.grant(grant);
+    if (deal.gives.chest) State.grantChest(deal.gives.chest, 1);
+    State.save();
+    return { ok: true, grant, chest: deal.gives.chest };
+  }
+
+  /* Free daily gift — the Store pays you to visit */
+  function claimFreeGift() {
+    State.ensureStoreDay();
+    if (State.data.storeState.giftClaimed) return { ok: false, reason: 'Already claimed — come back tomorrow!' };
+    State.data.storeState.giftClaimed = true;
+    const grant = givesToGrant(DATA.STORE.freeGift.gives);
+    State.grant(grant);
+    State.save();
+    return { ok: true, grant };
+  }
+
+  return { beginCheckout, confirmPayment, findPack, buyDiamondItem, buyPromo, buyDeal, claimFreeGift, paypalUrl };
 })();

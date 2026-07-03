@@ -152,6 +152,23 @@ const Combat = (() => {
           ev(B, { t: 'passive', unit: u.uid, name: 'WARD' });
           mates(B, u).forEach(m => addShield(B, m, getStat(B, u, 'atk') * f.power, 10));
           break;
+        /* ASCENSION team auras — permanent, party-wide */
+        case 'mightAura':
+          ev(B, { t: 'passive', unit: u.uid, name: 'SOVEREIGN AURA' });
+          mates(B, u).forEach(m => addStatus(B, m, { kind: 'atkUp', power: f.power, dur: 9999, chance: 100 }, u));
+          break;
+        case 'bulwarkAura':
+          ev(B, { t: 'passive', unit: u.uid, name: 'MOUNTAIN AURA' });
+          mates(B, u).forEach(m => addStatus(B, m, { kind: 'defUp', power: f.power, dur: 9999, chance: 100 }, u));
+          break;
+        case 'hasteAura':
+          ev(B, { t: 'passive', unit: u.uid, name: 'SQUALL AURA' });
+          mates(B, u).forEach(m => addStatus(B, m, { kind: 'haste', power: f.power, dur: 9999, chance: 100 }, u));
+          break;
+        case 'critAura':
+          ev(B, { t: 'passive', unit: u.uid, name: 'HAWKEYE AURA' });
+          mates(B, u).forEach(m => addStatus(B, m, { kind: 'critUp', power: f.power, dur: 9999, chance: 100 }, u));
+          break;
       }
     });
     if (fxHas(u, 'guardianAngel')) u.hasAngel = true;
@@ -311,6 +328,13 @@ const Combat = (() => {
         if (dr && m.uid !== target.uid) raw *= 1 - dr;
       });
     }
+    // ASCENSION Guard Aura (Tank exclusive): while the guardian stands,
+    // every OTHER ally takes less damage.
+    mates(B, target).forEach(m => {
+      if (m.uid === target.uid) return;
+      const ga = fxSum(m, 'guardAura');
+      if (ga > 0) raw *= 1 - Math.min(60, ga) / 100;
+    });
 
     let dmg = Math.max(1, Math.round(raw));
 
@@ -447,6 +471,9 @@ const Combat = (() => {
 
   function healUnit(B, src, target, amount, quiet) {
     if (!target.alive) return;
+    // ASCENSION Heal Amp (Healer exclusive): all healing done is stronger
+    const amp = src ? fxSum(src, 'healAmp') : 0;
+    if (amp > 0) amount *= 1 + amp / 100;
     const a = Math.max(1, Math.round(amount));
     target.hp = Math.min(target.maxHp, target.hp + a);
     if (!quiet) ev(B, { t: 'heal', from: src.uid, to: target.uid, amount: a });
@@ -647,6 +674,14 @@ const Combat = (() => {
       if (echo > 0 && t.alive) {
         ev(B, { t: 'chain', from: u.uid, to: t.uid });
         dealDamage(B, u, t, echo, { kind: 'chain' });
+      }
+      // ASCENSION Culling (Melee exclusive): basics EXECUTE low-HP enemies
+      const cull = fxSum(u, 'culling');
+      if (cull > 0 && t.alive && t.hp / t.maxHp < cull / 100) {
+        ev(B, { t: 'passive', unit: u.uid, name: 'CULLED' });
+        ev(B, { t: 'dmg', from: u.uid, to: t.uid, amount: Math.round(t.hp), crit: true, kind: 'skill' });
+        t.hp = 0;
+        checkDeath(B, t, u);
       }
       // every-Nth-basic AoE (Warcry of the Five Regions)
       fxAll(u, 'aoeBasic').forEach(f => {
@@ -1032,6 +1067,28 @@ const Combat = (() => {
     return { wave, dg, env: dg.env, stageEq, tier };
   }
 
+  // Depths of Agdao (Expeditions): dungeon-crawler checkpoints. Themed by
+  // the region's own enemy families; floors climb the shared curve forever.
+  function buildExpeditionWave(regionId, floor, nodeType) {
+    const dgs = DATA.DUNGEONS.list.filter(d => d.region === regionId);
+    const dg = dgs[Math.floor(Math.random() * dgs.length)] || DATA.DUNGEONS.list[0];
+    const fam = DATA.ENEMY_FAMILIES[dg.family];
+    const stageEq = DATA.EXPEDITION.stageEq(State.data.campaign.maxStage, floor);
+    const units = Object.values(fam.units);
+    const wave = [];
+    if (nodeType === 'boss') {
+      wave.push(mkModeUnit(fam.boss, 0, stageEq, 1.35 + floor * 0.02, true));
+      wave[0].name = 'DEPTHS ' + fam.boss.name;
+      for (let i = 0; i < 3; i++) wave.push(mkModeUnit(units[i % units.length], i + 1, stageEq, 0.9));
+    } else if (nodeType === 'elite') {
+      for (let i = 0; i < 4; i++) wave.push(mkModeUnit(units[i % units.length], i, stageEq, 1.15));
+    } else {
+      for (let i = 0; i < 3; i++) wave.push(mkModeUnit(units[i % units.length], i, stageEq, 0.9));
+    }
+    return { wave, env: dg.env, stageEq, fam };
+  }
+
   return { createBattle, tick, drainEvents, castUlt, buildAllyUnits, buildEnemyWave, buildTowerWave, buildArenaTeam,
-    buildBossRushWave, buildTrialsWave, buildAbyssWave, buildTournamentTeam, buildDungeonWave, buildWarlordWave, ULT_COST };
+    buildBossRushWave, buildTrialsWave, buildAbyssWave, buildTournamentTeam, buildDungeonWave, buildWarlordWave,
+    buildExpeditionWave, ULT_COST };
 })();
