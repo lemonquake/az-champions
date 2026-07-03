@@ -2768,8 +2768,27 @@ const UI = (() => {
     if (!input) return;
     const code = input.value.trim().toLowerCase();
     if (!code) return;
-    
-    if (code === 'quakelemon') {
+    if (code === 'az') {
+      for (let i = 0; i < 10; i++) {
+        State.addChampion('azrin');
+        State.addChampion('ashkarr');
+        State.addChampion('solmaris');
+        State.addChampion('thalassia');
+        State.addChampion('aljay');
+      }
+      State.save();
+      toast('Cheat code activated! Received 10x Azrin, Ashkarr, Solmaris, Thalassia, & Aljay! ⚔️', 'good');
+      input.value = '';
+    } else if (code === '+') {
+      State.data.res.gold = (State.data.res.gold || 0) + 2000000;
+      State.data.res.xp = (State.data.res.xp || 0) + 2000000;
+      State.data.res.dust = (State.data.res.dust || 0) + 2000000;
+      State.data.res.diamonds = (State.data.res.diamonds || 0) + 10000;
+      State.save();
+      toast('Cheat code activated! Received 2M Gold, 2M XP, 2M Dust & 10,000 Diamonds! 💎', 'good');
+      refreshTopbar();
+      input.value = '';
+    } else if (code === 'quakelemon') {
       State.data.res.scrolls = (State.data.res.scrolls || 0) + 30;
       State.data.res.xp = (State.data.res.xp || 0) + 5000;
       State.data.res.diamonds = (State.data.res.diamonds || 0) + 5000;
