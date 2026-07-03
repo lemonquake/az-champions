@@ -1,0 +1,10 @@
+# Agent metadata
+.claude/
+
+# IDE files
+.idea/
+.vscode/
+
+# System / logs
+*.log
+.DS_Store

@@ -1,0 +1,415 @@
+A lot to implement here, like A LOT. First and foremost, this already addicting game must achieve new heights as the current modes and things to do are getting boring especially when you run out of resources to join them or do that stuff. There is only Tower of Trials and Arena, and those 2 really need a total make over and overhaul with their UI (both PC and mobile) like make them exciting and epic. Then think of 4 more game modes for the Player to spend their time on, like really exciting and addicting. This is a better clone of AFK Arena, so think of something that will elevate this to new heights. Also with our Summoning of Champions, there should be an epic animation (skippable) when drawing them as cards and making their way into the screen with all the effects and animation. Create at least 10 different themed Areas for battle, and 10 different Boss Area design for that specific theme. Create 10 more unique Champion designs and champion weapon designs - armor and more, 30 more Champions, and 20 more enemies.
+
+When viewing champions, make their Stats and everything really Exciting and animated like: /**
+ * Free Remotion Template Component
+ * ---------------------------------
+ * This template is free to use in your projects!
+ * Credit appreciated but not required.
+ *
+ * Created by the team at https://www.reactvideoeditor.com
+ *
+ * Happy coding and building amazing videos! 🎉
+ */
+
+"use client";
+
+import { interpolate, useCurrentFrame } from "remotion";
+
+export default function ProgressBars() {
+  const frame = useCurrentFrame();
+
+  const skills = [
+    { label: "React", value: 90, color: "#4361ee" },
+    { label: "TypeScript", value: 85, color: "#7209b7" },
+    { label: "Node.js", value: 75, color: "#f72585" },
+    { label: "Python", value: 60, color: "#4cc9f0" },
+    { label: "Go", value: 45, color: "#a855f7" },
+  ];
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Inter, system-ui, sans-serif",
+        background: "linear-gradient(to bottom right, #111827, #1f2937)",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          width: "700px",
+          backgroundColor: "rgba(0, 0, 0, 0.2)",
+          borderRadius: "16px",
+          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.3)",
+          padding: "40px 50px",
+        }}
+      >
+        {/* Title */}
+        <div
+          style={{
+            fontSize: "28px",
+            fontWeight: "bold",
+            color: "white",
+            textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+            letterSpacing: "-0.5px",
+            marginBottom: "35px",
+            textAlign: "center",
+          }}
+        >
+          Skills Overview
+        </div>
+
+        {/* Bars */}
+        {skills.map((skill, i) => {
+          const barProgress = interpolate(
+            frame,
+            [5 + i * 8, 25 + i * 8],
+            [0, skill.value],
+            { extrapolateRight: "clamp", extrapolateLeft: "clamp" }
+          );
+
+          const labelOpacity = interpolate(
+            frame,
+            [i * 8, 5 + i * 8],
+            [0, 1],
+            { extrapolateRight: "clamp", extrapolateLeft: "clamp" }
+          );
+
+          return (
+            <div
+              key={`skill-${i}`}
+              style={{
+                marginBottom: i < skills.length - 1 ? "22px" : "0",
+                opacity: labelOpacity,
+              }}
+            >
+              {/* Label row */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "8px",
+                }}
+              >
+                <span
+                  style={{
+                    color: "white",
+                    fontSize: "16px",
+                    fontWeight: "600",
+                  }}
+                >
+                  {skill.label}
+                </span>
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.8)",
+                    fontSize: "16px",
+                    fontWeight: "500",
+                  }}
+                >
+                  {Math.round(barProgress)}%
+                </span>
+              </div>
+
+              {/* Bar track */}
+              <div
+                style={{
+                  width: "100%",
+                  height: "14px",
+                  backgroundColor: "rgba(255,255,255,0.1)",
+                  borderRadius: "7px",
+                  overflow: "hidden",
+                }}
+              >
+                {/* Bar fill */}
+                <div
+                  style={{
+                    width: `${barProgress}%`,
+                    height: "100%",
+                    backgroundColor: skill.color,
+                    borderRadius: "7px",
+                    boxShadow: `0 0 10px ${skill.color}40`,
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+---
+Then Split screen Versus bar in Tournaments and Clan Wars for example: // Template code for Split Screen
+/**
+ * Free Remotion Template Component
+ * ---------------------------------
+ * This template is free to use in your projects!
+ * Credit appreciated but not required.
+ *
+ * Created by the team at https://www.reactvideoeditor.com
+ *
+ * Happy coding and building amazing videos! 🎉
+ */
+
+"use client";
+
+import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+
+export default function SplitScreen() {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  // Left panel slides in from left
+  const leftSlide = spring({
+    frame,
+    fps,
+    config: { damping: 15, stiffness: 80 },
+  });
+
+  // Right panel slides in from right with slight delay
+  const rightSlide = spring({
+    frame: frame - 5,
+    fps,
+    config: { damping: 15, stiffness: 80 },
+  });
+
+  const leftTranslateX = interpolate(leftSlide, [0, 1], [-100, 0]);
+  const rightTranslateX = interpolate(rightSlide, [0, 1], [100, 0]);
+
+  // Divider fades in after panels meet
+  const dividerOpacity = interpolate(frame, [fps * 0.6, fps * 0.9], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        backgroundColor: "#111827",
+        overflow: "hidden",
+        display: "flex",
+      }}
+    >
+      {/* Left panel */}
+      <div
+        style={{
+          width: "50%",
+          height: "100%",
+          transform: `translateX(${leftTranslateX}%)`,
+          background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "2rem",
+        }}
+      >
+        <h2
+          style={{
+            color: "white",
+            fontSize: "2.5rem",
+            fontWeight: "bold",
+            margin: 0,
+          }}
+        >
+          Panel A
+        </h2>
+        <p
+          style={{
+            color: "#bfdbfe",
+            fontSize: "1rem",
+            marginTop: "0.75rem",
+            textAlign: "center",
+          }}
+        >
+          Left side content slides in from the left edge
+        </p>
+      </div>
+
+      {/* Right panel */}
+      <div
+        style={{
+          width: "50%",
+          height: "100%",
+          transform: `translateX(${rightTranslateX}%)`,
+          background: "linear-gradient(135deg, #5b21b6, #7c3aed)",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "2rem",
+        }}
+      >
+        <h2
+          style={{
+            color: "white",
+            fontSize: "2.5rem",
+            fontWeight: "bold",
+            margin: 0,
+          }}
+        >
+          Panel B
+        </h2>
+        <p
+          style={{
+            color: "#ddd6fe",
+            fontSize: "1rem",
+            marginTop: "0.75rem",
+            textAlign: "center",
+          }}
+        >
+          Right side content slides in from the right edge
+        </p>
+      </div>
+
+      {/* Center divider */}
+      <div
+        style={{
+          position: "absolute",
+          top: "10%",
+          bottom: "10%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "2px",
+          background: "linear-gradient(180deg, transparent, rgba(255,255,255,0.8), transparent)",
+          opacity: dividerOpacity,
+        }}
+      />
+    </div>
+  );
+}
+
+---
+Then create my name intro at the very boot of the game "Aljay L Games": // Template code for Logo Stroke Draw
+/**
+ * Free Remotion Template Component
+ * ---------------------------------
+ * This template is free to use in your projects!
+ * Credit appreciated but not required.
+ *
+ * Created by the team at https://www.reactvideoeditor.com
+ *
+ * Happy coding and building amazing videos! 🎉
+ */
+
+"use client";
+
+import { useCurrentFrame, useVideoConfig, interpolate } from "remotion";
+
+export default function LogoStrokeDraw() {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  // Hexagon perimeter approx: 6 * side length. Side = 50, perimeter ~ 300
+  const hexPerimeter = 300;
+  // Triangle perimeter approx: 3 * side. Side ~ 50, perimeter ~ 150
+  const triPerimeter = 150;
+
+  const hexOffset = interpolate(frame, [0, fps * 1.2], [hexPerimeter, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  const triOffset = interpolate(frame, [fps * 0.4, fps * 1.6], [triPerimeter, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  // Fill fades in after outlines are drawn
+  const fillOpacity = interpolate(frame, [fps * 1.6, fps * 2.2], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  // Company name fade in
+  const nameOpacity = interpolate(frame, [fps * 2.0, fps * 2.5], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  // Hexagon points (centered at 60,60, radius 50)
+  const hexPoints = "60,10 103.3,35 103.3,85 60,110 16.7,85 16.7,35";
+  // Inner triangle (centered at 60,60, radius 30)
+  const triPoints = "60,30 85.98,75 34.02,75";
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        backgroundColor: "#111827",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        overflow: "hidden",
+      }}
+    >
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <defs>
+          <linearGradient id="logoFillGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#4361ee" />
+            <stop offset="100%" stopColor="#7209b7" />
+          </linearGradient>
+        </defs>
+        {/* Hexagon fill */}
+        <polygon
+          points={hexPoints}
+          fill="url(#logoFillGrad)"
+          opacity={fillOpacity * 0.3}
+        />
+        {/* Hexagon stroke */}
+        <polygon
+          points={hexPoints}
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth="2.5"
+          strokeDasharray={hexPerimeter}
+          strokeDashoffset={hexOffset}
+          strokeLinejoin="round"
+        />
+        {/* Triangle fill */}
+        <polygon
+          points={triPoints}
+          fill="url(#logoFillGrad)"
+          opacity={fillOpacity}
+        />
+        {/* Triangle stroke */}
+        <polygon
+          points={triPoints}
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth="2.5"
+          strokeDasharray={triPerimeter}
+          strokeDashoffset={triOffset}
+          strokeLinejoin="round"
+        />
+      </svg>
+      <p
+        style={{
+          color: "white",
+          fontSize: "1.8rem",
+          fontWeight: "bold",
+          fontFamily: "Inter, sans-serif",
+          marginTop: "1.5rem",
+          opacity: nameOpacity,
+        }}
+      >
+        Company Name
+      </p>
+    </div>
+  );
+}

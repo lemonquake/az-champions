@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d0f1a">
+<title>AZ Champions by Aljay Leodones</title>
+<meta name="description" content="AZ Champions by Aljay Leodones">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
+<!-- BUILD STAMP: 2026-07-03g — DIRECT BOOT: straight into gameplay, no intro, no main menu -->
+<!-- ============================================================
+     CRITICAL INLINE STYLES — the boot splash must paint instantly,
+     before ANY external file (CSS or JS) loads. This is what kills
+     the "black screen at start" on slow phones: the very first
+     HTML paint already shows the studio splash + loading bar.
+     ============================================================ -->
+<style>
+  html, body { height: 100%; margin: 0; padding: 0; background: #06070d; }
+  #boot-splash {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 99999;
+    background: radial-gradient(circle at 50% 40%, #15182e 0%, #06070d 80%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #e8eaf5;
+    transition: opacity 0.5s ease-out;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #boot-splash.bs-out { opacity: 0; pointer-events: none; }
+  
+  #boot-splash .bs-inner {
+    text-align: center;
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  #boot-splash .bs-logo-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  #boot-splash .bs-logo-bg {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle, rgba(245, 197, 66, 0.2) 0%, transparent 70%);
+    filter: blur(10px);
+  }
+
+  #boot-splash .bs-presenter {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    color: #8b90ad;
+    text-transform: uppercase;
+  }
+  
+  #boot-splash .bs-title {
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: 6px;
+    margin-top: 4px;
+    color: #f5c542;
+    background: linear-gradient(180deg, #ffffff, #f5c542 60%, #b8791e);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  }
+  
+  #boot-splash .bs-title span {
+    color: #fff;
+  }
+
+  #boot-splash .bs-track {
+    width: 240px;
+    height: 6px;
+    background: #171a2b;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  #boot-splash .bs-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #f5c542, #ff8c3a);
+    box-shadow: 0 0 8px rgba(245, 197, 66, 0.5);
+    transition: width 0.1s ease;
+  }
+  
+  #boot-splash .bs-status {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #8b90ad;
+    text-transform: uppercase;
+    min-height: 14px;
+  }
+  
+  #boot-splash noscript { display: block; margin-top: 18px; color: #ff8f8f; font-size: 13px; }
+</style>
+
+<!-- ============================================================
+     EARLY BOOT GUARD — registered BEFORE any game script so that a
+     parse/load error in ANY later file shows a readable overlay
+     instead of a dead black screen. Also provides safeStorage and
+     the loading-progress tick used by the splash.
+     ============================================================ -->
+<script>
+(function() {
+  /* ---- build id: single source of truth, shown on the Main Menu so a
+     stale cached/installed build is identifiable from a screenshot ---- */
+  window.AZ_BUILD = '20260703g';
+
+  /* ---- safeStorage: localStorage with in-memory fallback ---- */
+  var memStore = {};
+  window.safeStorage = {
+    getItem: function(key) {
+      try { return window.localStorage.getItem(key); }
+      catch (e) { return memStore.hasOwnProperty(key) ? memStore[key] : null; }
+    },
+    setItem: function(key, val) {
+      try { window.localStorage.setItem(key, val); }
+      catch (e) { memStore[key] = String(val); }
+    },
+    removeItem: function(key) {
+      try { window.localStorage.removeItem(key); }
+      catch (e) { delete memStore[key]; }
+    },
+    clear: function() {
+      try { window.localStorage.clear(); }
+      catch (e) { for (var k in memStore) delete memStore[k]; }
+    }
+  };
+
+  /* ---- readable fatal-error overlay (works with zero CSS) ---- */
+  window.__bootShowError = function(msg) {
+    try {
+      if (document.getElementById('boot-error-overlay')) return;
+      var el = document.createElement('div');
+      el.id = 'boot-error-overlay';
+      el.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:100000;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;background:rgba(5,6,11,0.97);padding:24px;color:#fff;font-family:sans-serif;';
+      el.innerHTML =
+        '<div style="max-width:380px;text-align:center;background:#171a2b;border:1px solid #2c3150;border-radius:18px;padding:26px 22px;">' +
+        '<div style="font-size:20px;font-weight:900;color:#f5c542;margin-bottom:10px;letter-spacing:2px;">⚠️ AZ CHAMPIONS</div>' +
+        '<p style="font-size:14px;color:#e8eaf5;margin-bottom:12px;line-height:1.5;">Something went wrong while starting the game.</p>' +
+        '<code style="display:block;background:#0a0c15;color:#ff8f8f;font-size:11.5px;border-radius:8px;padding:10px;margin-bottom:16px;word-break:break-word;white-space:normal;font-family:monospace;text-align:left;max-height:120px;overflow-y:auto;">' + String(msg).slice(0, 300).replace(/</g, '&lt;') + '</code>' +
+        '<button style="background:#e8a72e;color:#3a2a08;border:none;border-radius:12px;padding:12px 22px;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:1px;" onclick="location.reload()">↻ RESTART GAME</button>' +
+        '</div>';
+      (document.body || document.documentElement).appendChild(el);
+      var splash = document.getElementById('boot-splash');
+      if (splash) splash.style.display = 'none';
+    } catch (e) { /* nothing more we can do */ }
+  };
+  window.__bootReady = false;
+  window.addEventListener('error', function(e) {
+    if (window.__bootReady) return; /* after boot, main.js owns error UX */
+    if (e.target && e.target.src) { window.__bootFail(e.target.src); return; }
+    window.__bootShowError(e.message || 'Unknown startup error');
+  }, true);
+  window.addEventListener('unhandledrejection', function(e) {
+    if (window.__bootReady) return;
+    window.__bootShowError((e.reason && e.reason.message) || 'Unknown startup error');
+  });
+
+  /* ---- splash progress ticks (called after each script parses) ---- */
+  var STEPS = 8, step = 0;
+  window.__bootTick = function(label) {
+    step++;
+    try {
+      var bar = document.getElementById('bs-bar');
+      var st = document.getElementById('bs-status');
+      if (bar) bar.style.width = Math.min(100, Math.round(step / STEPS * 100)) + '%';
+      if (st) st.textContent = label ? label.toUpperCase() : '';
+    } catch (e) {}
+  };
+  /* ---- script-load failure: self-heal before giving up ----
+     A failed script usually means the page came from browser cache
+     while the game server restarted (or a Wi-Fi blip). If the server
+     answers, ONE automatic fresh reload fixes it without bothering
+     the player. Only a genuinely unreachable server shows the error. */
+  window.__bootFail = function(src) {
+    var msg = 'Could not load ' + src + '. If you started the game with PLAY.cmd, ' +
+              'make sure its black window is still open, then press RESTART GAME.';
+    var retried = false;
+    try { retried = sessionStorage.getItem('az_boot_retry') === '1'; } catch (e) { retried = true; }
+    if (!retried && window.fetch && location.protocol !== 'file:') {
+      try { sessionStorage.setItem('az_boot_retry', '1'); } catch (e) {}
+      fetch(location.pathname || './', { cache: 'no-store' })
+        .then(function(r) {
+          if (r.ok) { location.reload(); }
+          else { window.__bootShowError(msg); }
+        })
+        .catch(function() { window.__bootShowError(msg); });
+      return;
+    }
+    window.__bootShowError(msg);
+  };
+})();
+</script>
+
+<link rel="stylesheet" href="css/style.css?v=20260703g">
+</head>
+<body>
+  <!-- HTML-first boot splash: paints before any external file loads.
+       Tap anywhere to skip once the game is ready. -->
+  <div id="boot-splash">
+    <div class="bs-inner">
+      <div class="bs-logo-container">
+        <div class="bs-logo-bg"></div>
+        <svg width="110" height="110" viewBox="0 0 120 120">
+          <defs>
+            <linearGradient id="bsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#f5c542"/>
+              <stop offset="100%" stop-color="#ff8c3a"/>
+            </linearGradient>
+          </defs>
+          <polygon points="60,10 103.3,35 103.3,85 60,110 16.7,85 16.7,35" fill="url(#bsGrad)" opacity="0.3"/>
+          <polygon points="60,10 103.3,35 103.3,85 60,110 16.7,85 16.7,35" fill="none" stroke="#f5c542" stroke-width="3" stroke-linejoin="round"/>
+          <polygon points="60,30 85.98,75 34.02,75" fill="url(#bsGrad)" opacity="0.95"/>
+          <polygon points="60,30 85.98,75 34.02,75" fill="none" stroke="#7cf5ff" stroke-width="2.5" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="bs-presenter">ALJAY L GAMES</div>
+      <div class="bs-title">AZ <span>CHAMPIONS</span></div>
+      
+      <div class="bs-track">
+        <div class="bs-bar" id="bs-bar"></div>
+      </div>
+      <div class="bs-status" id="bs-status">LOADING GAME...</div>
+      <noscript>JavaScript is disabled — AZ Champions needs it to run. Please enable JavaScript and reload.</noscript>
+    </div>
+  </div>
+
+  <div id="app">
+    <div id="game-frame">
+      <canvas id="battle-canvas"></canvas>
+      <div id="crit-flash" class="crit-screen-flash"></div>
+      <div id="radial-blur" class="radial-blur-flash"></div>
+      <div id="fx-overlay"></div>
+      <div id="screens"></div>
+      <header id="topbar"></header>
+      <nav id="bottomnav"></nav>
+      <div id="toasts"></div>
+      <div id="modal-root"></div>
+      <div id="summon-cinema"></div>
+      <div id="vs-screen"></div>
+    </div>
+  </div>
+
+  <script src="js/lib/three.min.js?v=20260703g" onerror="__bootFail('js/lib/three.min.js')"></script>
+  <script>__bootTick('3D engine');</script>
+  <script src="js/data.js?v=20260703g" onerror="__bootFail('js/data.js')"></script>
+  <script>__bootTick('Champions & realms');</script>
+  <script src="js/state.js?v=20260703g" onerror="__bootFail('js/state.js')"></script>
+  <script>__bootTick('Save system');</script>
+  <script src="js/audio.js?v=20260703g" onerror="__bootFail('js/audio.js')"></script>
+  <script>__bootTick('Audio');</script>
+  <script src="js/combat.js?v=20260703g" onerror="__bootFail('js/combat.js')"></script>
+  <script>__bootTick('Combat engine');</script>
+  <script src="js/battle3d.js?v=20260703g" onerror="__bootFail('js/battle3d.js')"></script>
+  <script>__bootTick('Battle renderer');</script>
+  <script src="js/store.js?v=20260703g" onerror="__bootFail('js/store.js')"></script>
+  <script>__bootTick('Store');</script>
+  <script src="js/ui.js?v=20260703g" onerror="__bootFail('js/ui.js')"></script>
+  <script>__bootTick('Interface');</script>
+  <script src="js/main.js?v=20260703g" onerror="__bootFail('js/main.js')"></script>
+</body>
+</html>
